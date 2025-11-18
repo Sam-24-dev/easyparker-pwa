@@ -6,7 +6,7 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-40 shadow-sm">
       <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 font-semibold text-lg">
+        <Link to="/home" className="flex items-center gap-2 font-semibold text-lg">
           <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center text-lg">
             P
           </div>

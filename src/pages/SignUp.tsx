@@ -30,7 +30,7 @@ export default function SignUp() {
         // En signup usamos todos los campos
         await signup(formData.nombre, formData.email, formData.password);
       }
-      navigate('/');
+      navigate('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error');
     } finally {

@@ -19,6 +19,9 @@ function App() {
         <ParkingProvider>
           <ReservaProvider>
             <Routes>
+              {/* Ruta raíz - Siempre muestra Splash primero */}
+              <Route path="/" element={<Splash />} />
+              
               {/* Rutas públicas (auth flow) */}
               <Route path="/splash" element={<Splash />} />
               <Route path="/onboarding" element={<Onboarding />} />
@@ -26,7 +29,7 @@ function App() {
 
               {/* Rutas protegidas (requieren autenticación) */}
               <Route
-                path="/"
+                path="/home"
                 element={
                   <ProtectedRoute>
                     <Home />

@@ -14,7 +14,7 @@ export function Home() {
 
   const handleLogout = () => {
     logout();
-    navigate('/splash');
+    navigate('/');
   };
 
   return (
