@@ -4,26 +4,51 @@ import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useParkings } from '../hooks/useParkings';
-import { MapPin, Shield, Clock } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, Shield, Clock, LogOut } from 'lucide-react';
 
 export function Home() {
   const navigate = useNavigate();
   const { totalAvailable } = useParkings();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/splash');
+  };
 
   return (
     <Layout>
       <div className="space-y-8">
-        <div className="bg-gradient-to-br from-primary to-blue-700 text-white rounded-2xl p-8 text-center">
+        {/* Header con usuario */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {user?.avatar && (
+              <img src={user.avatar} alt={user.nombre} className="w-12 h-12 rounded-full" />
+            )}
+            <div>
+              <p className="text-sm text-gray-600">Hola,</p>
+              <p className="font-semibold text-gray-900">{user?.nombre || 'Usuario'}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
+
+        <div className="bg-gradient-to-br from-primary via-accent to-purple-600 text-white rounded-2xl p-8 text-center shadow-2xl">
           <h1 className="text-3xl font-bold mb-2">EasyParker</h1>
-          <p className="text-blue-100 mb-6">Encuentra y reserva parqueo en menos de 90 segundos</p>
-          <Button
-            size="lg"
-            variant="secondary"
+          <p className="text-white/90 mb-6">Encuentra y reserva parqueo en menos de 90 segundos</p>
+          <button
             onClick={() => navigate('/buscar')}
-            className="w-full text-primary font-semibold"
+            className="w-full bg-white text-primary hover:bg-white/90 font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
           >
             Buscar Parqueo Ahora
-          </Button>
+          </button>
         </div>
 
         <div className="text-center">
