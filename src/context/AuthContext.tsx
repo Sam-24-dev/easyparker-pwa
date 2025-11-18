@@ -36,12 +36,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setTimeout(() => {
         // Validación básica "cortina de humo"
         if (email && password.length >= 6) {
-          const mockUser: User = {
-            id: Date.now().toString(),
-            nombre: email.split('@')[0],
-            email: email,
-            avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=4F46E5&color=fff`,
-          };
+          // Intentar recuperar usuario previamente registrado
+          const storedUser = localStorage.getItem('easyparker-user');
+          let mockUser: User;
+          
+          if (storedUser) {
+            // Si existe un usuario guardado, usarlo
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser.email === email) {
+              mockUser = parsedUser;
+            } else {
+              // Email diferente, crear nuevo usuario
+              mockUser = {
+                id: Date.now().toString(),
+                nombre: email.split('@')[0],
+                email: email,
+                avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=4F46E5&color=fff`,
+              };
+            }
+          } else {
+            // No hay usuario guardado, crear uno nuevo
+            mockUser = {
+              id: Date.now().toString(),
+              nombre: email.split('@')[0],
+              email: email,
+              avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=4F46E5&color=fff`,
+            };
+          }
+          
           setUser(mockUser);
           localStorage.setItem('easyparker-user', JSON.stringify(mockUser));
           resolve();

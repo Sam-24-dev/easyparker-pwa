@@ -24,16 +24,16 @@ export function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {user?.avatar && (
-              <img src={user.avatar} alt={user.nombre} className="w-12 h-12 rounded-full" />
+              <img src={user.avatar} alt={user.nombre} className="w-12 h-12 rounded-full ring-2 ring-primary/50" />
             )}
             <div>
-              <p className="text-sm text-gray-600">Hola,</p>
-              <p className="font-semibold text-gray-900">{user?.nombre || 'Usuario'}</p>
+              <p className="text-sm text-gray-400">Hola,</p>
+              <p className="font-semibold text-white">{user?.nombre || 'Usuario'}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+            className="p-2 text-gray-400 hover:text-red-400 transition-colors"
             title="Cerrar sesión"
           >
             <LogOut size={20} />
@@ -53,30 +53,29 @@ export function Home() {
 
         <div className="text-center">
           <div className="text-4xl font-bold text-primary mb-1">{totalAvailable}</div>
-          <p className="text-gray-600">Espacios disponibles hoy en Guayaquil</p>
+          <p className="text-gray-300">Espacios disponibles hoy en Guayaquil</p>
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900">Acceso Rápido</h2>
+          <h2 className="text-lg font-semibold text-white">Acceso Rápido</h2>
           {[
             { name: 'Urdesa', lat: -2.1769, lng: -79.9016 },
             { name: 'Kennedy', lat: -2.1542, lng: -79.9024 },
             { name: 'Centro', lat: -2.1725, lng: -79.9045 },
           ].map(zone => (
-            <Card
+            <div
               key={zone.name}
-              hover
               onClick={() => navigate('/buscar')}
-              className="p-4"
+              className="bg-panel rounded-xl p-4 border border-white/10 hover:bg-panel/80 transition-all cursor-pointer"
             >
-              <p className="font-medium text-gray-900">{zone.name}</p>
-              <p className="text-sm text-gray-600">Ver parqueos cerca</p>
-            </Card>
+              <p className="font-medium text-white">{zone.name}</p>
+              <p className="text-sm text-gray-400">Ver parqueos cerca</p>
+            </div>
           ))}
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900">Por qué EasyParker</h2>
+          <h2 className="text-lg font-semibold text-white">Por qué EasyParker</h2>
           <div className="space-y-3">
             {[
               { icon: MapPin, title: 'Ubicación Precisa', desc: 'Mapa interactivo en tiempo real' },
@@ -85,13 +84,13 @@ export function Home() {
             ].map((feature, idx) => {
               const Icon = feature.icon;
               return (
-                <Card key={idx} className="p-4 flex items-start gap-3">
+                <div key={idx} className="bg-panel rounded-xl p-4 border border-white/10 flex items-start gap-3">
                   <Icon className="text-primary flex-shrink-0 mt-1" size={24} />
                   <div>
-                    <h3 className="font-medium text-gray-900">{feature.title}</h3>
-                    <p className="text-sm text-gray-600">{feature.desc}</p>
+                    <h3 className="font-medium text-white">{feature.title}</h3>
+                    <p className="text-sm text-gray-400">{feature.desc}</p>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>

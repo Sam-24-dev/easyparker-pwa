@@ -5,7 +5,7 @@ import { Mail, Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, login } = useAuth();
   const [isLogin, setIsLogin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,8 +24,8 @@ export default function SignUp() {
 
     try {
       if (isLogin) {
-        // En login solo usamos email y password
-        await signup(formData.nombre || 'Usuario', formData.email, formData.password);
+        // En login usamos la función login del context
+        await login(formData.email, formData.password);
       } else {
         // En signup usamos todos los campos
         await signup(formData.nombre, formData.email, formData.password);

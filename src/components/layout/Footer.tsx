@@ -2,11 +2,10 @@ import React from 'react';
 
 export function Footer() {
   return (
-    <footer className="bg-gray-50 border-t border-gray-100 py-8 mt-12">
-      <div className="max-w-md mx-auto px-4 text-center text-sm text-gray-600">
-        <p className="mb-2">EasyParker Guayaquil</p>
-        <p>Encuentra y reserva parqueo al instante</p>
-        <p className="text-xs mt-4">2025. Todos los derechos reservados.</p>
+    <footer className="fixed bottom-0 left-0 right-0 bg-panel border-t border-white/10 py-4">
+      <div className="max-w-md mx-auto px-4 text-center text-sm text-gray-400">
+        <p className="mb-1 text-white font-medium">EasyParker Guayaquil</p>
+        <p className="text-xs">Encuentra y reserva parqueo al instante</p>
       </div>
     </footer>
   );
