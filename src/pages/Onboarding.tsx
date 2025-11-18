@@ -83,7 +83,7 @@ export default function Onboarding() {
         <p className="text-center text-gray-400 text-sm mt-4">
           ¿Ya tienes cuenta?{' '}
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/signup?mode=login')}
             className="text-primary hover:text-accent font-medium transition-colors"
           >
             Inicia sesión

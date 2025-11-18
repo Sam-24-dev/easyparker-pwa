@@ -1,15 +1,24 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signup, login } = useAuth();
   const [isLogin, setIsLogin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Detectar si viene desde Onboarding con modo login
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'login') {
+      setIsLogin(true);
+    }
+  }, [searchParams]);
 
   const [formData, setFormData] = useState({
     nombre: '',

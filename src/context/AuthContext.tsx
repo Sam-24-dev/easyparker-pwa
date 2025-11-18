@@ -24,9 +24,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Verificar si hay sesión al cargar
   useEffect(() => {
-    const storedUser = localStorage.getItem('easyparker-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const currentUser = localStorage.getItem('easyparker-current-user');
+    if (currentUser) {
+      setUser(JSON.parse(currentUser));
     }
     setLoading(false);
   }, []);
@@ -34,43 +34,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // Validación básica "cortina de humo"
+        // Validación básica
         if (email && password.length >= 6) {
-          // Intentar recuperar usuario previamente registrado
-          const storedUser = localStorage.getItem('easyparker-user');
-          let mockUser: User;
+          // Buscar usuario en la base de datos
+          const usersDB = localStorage.getItem('easyparker-users-db');
+          const users = usersDB ? JSON.parse(usersDB) : {};
           
-          if (storedUser) {
-            // Si existe un usuario guardado, usarlo
-            const parsedUser = JSON.parse(storedUser);
-            if (parsedUser.email === email) {
-              mockUser = parsedUser;
-            } else {
-              // Email diferente, crear nuevo usuario
-              mockUser = {
-                id: Date.now().toString(),
-                nombre: email.split('@')[0],
-                email: email,
-                avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=4F46E5&color=fff`,
-              };
-            }
+          if (users[email]) {
+            // Usuario encontrado - login exitoso
+            const mockUser = users[email];
+            setUser(mockUser);
+            localStorage.setItem('easyparker-current-user', JSON.stringify(mockUser));
+            resolve();
           } else {
-            // No hay usuario guardado, crear uno nuevo
-            mockUser = {
-              id: Date.now().toString(),
-              nombre: email.split('@')[0],
-              email: email,
-              avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=4F46E5&color=fff`,
-            };
+            // Usuario NO existe - rechazar login
+            reject(new Error('Usuario no encontrado. Por favor regístrate primero.'));
           }
-          
-          setUser(mockUser);
-          localStorage.setItem('easyparker-user', JSON.stringify(mockUser));
-          resolve();
         } else {
-          reject(new Error('Credenciales inválidas'));
+          reject(new Error('Email o contraseña inválidos'));
         }
-      }, 800); // Simular delay de red
+      }, 800);
     });
   };
 
@@ -79,14 +62,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setTimeout(() => {
         // Validación básica
         if (nombre && email && password.length >= 6) {
+          // Crear usuario
           const mockUser: User = {
             id: Date.now().toString(),
             nombre: nombre,
             email: email,
             avatar: `https://ui-avatars.com/api/?name=${nombre}&background=4F46E5&color=fff`,
           };
+          
+          // Guardar en "base de datos" de usuarios
+          const usersDB = localStorage.getItem('easyparker-users-db');
+          const users = usersDB ? JSON.parse(usersDB) : {};
+          users[email] = mockUser;
+          localStorage.setItem('easyparker-users-db', JSON.stringify(users));
+          
+          // Guardar como usuario actual
           setUser(mockUser);
-          localStorage.setItem('easyparker-user', JSON.stringify(mockUser));
+          localStorage.setItem('easyparker-current-user', JSON.stringify(mockUser));
           resolve();
         } else {
           reject(new Error('Datos inválidos. El password debe tener al menos 6 caracteres.'));
@@ -97,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('easyparker-user');
+    localStorage.removeItem('easyparker-current-user');
   };
 
   return (
