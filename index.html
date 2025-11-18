@@ -17,7 +17,18 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        // Desregistrar service workers viejos
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister();
+          });
+        });
+        
+        // Registrar nuevo service worker
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((registration) => {
+          // Forzar actualización
+          registration.update();
+        }).catch(() => {});
       }
     </script>
   </body>
