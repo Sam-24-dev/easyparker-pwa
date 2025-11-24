@@ -1,19 +1,21 @@
 import React from 'react';
-import { Header } from './Header';
-import { Footer } from './Footer';
+import { BottomNav } from './BottomNav';
 
 interface LayoutProps {
   children: React.ReactNode;
+  showNav?: boolean;
+  backgroundClassName?: string;
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, showNav = false, backgroundClassName = 'bg-white' }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-navy">
-      <Header />
-      <main className="pt-16 pb-20 px-4 max-w-md mx-auto animate-in fade-in">
-        {children}
-      </main>
-      <Footer />
+    <div className={`min-h-screen ${backgroundClassName} text-navy`}>
+      <div className="max-w-md mx-auto min-h-screen flex flex-col">
+        <main className="flex-1 px-5 py-6 space-y-6 animate-in fade-in">
+          {children}
+        </main>
+        {showNav && <BottomNav />}
+      </div>
     </div>
   );
 }
