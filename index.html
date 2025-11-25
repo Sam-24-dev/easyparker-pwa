@@ -16,17 +16,21 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Limpiar datos viejos del sistema anterior ANTES de cargar la app
+      // Limpiar SOLO los datos viejos del sistema anterior sin borrar usuarios actuales
       (function() {
-        const oldUserKey = 'easyparker-user'; // Sistema viejo
-        const migratedFlag = 'easyparker-migrated'; // Flag de migración
-        
-        // Si existe el sistema viejo o el flag de migración, limpiar TODO
-        if (localStorage.getItem(oldUserKey) || localStorage.getItem(migratedFlag)) {
-          localStorage.removeItem(oldUserKey);
-          localStorage.removeItem(migratedFlag);
-          localStorage.removeItem('easyparker-current-user');
-          localStorage.removeItem('easyparker-users-db');
+        const legacyUserKey = 'easyparker-user';
+        const legacyFlagKey = 'easyparker-migrated';
+        const migrationFlagV2 = 'easyparker-migration-v2';
+
+        // Si aún no ejecutamos esta migración, eliminar únicamente las claves antiguas
+        if (!localStorage.getItem(migrationFlagV2)) {
+          if (localStorage.getItem(legacyUserKey)) {
+            localStorage.removeItem(legacyUserKey);
+          }
+          if (localStorage.getItem(legacyFlagKey)) {
+            localStorage.removeItem(legacyFlagKey);
+          }
+          localStorage.setItem(migrationFlagV2, 'done');
         }
       })();
       

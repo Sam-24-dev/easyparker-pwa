@@ -8,7 +8,8 @@ export const reservasMock: IReserva[] = [
     horaInicio: "14:30",
     horaFin: "16:30",
     estado: "activa",
-    vehiculo: "Auto"
+    vehiculo: "Auto",
+    placa: "GAC-2345"
   },
   {
     id: "EP-12344",
@@ -17,6 +18,7 @@ export const reservasMock: IReserva[] = [
     horaInicio: "10:00",
     horaFin: "12:00",
     estado: "completada",
-    vehiculo: "Moto"
+    vehiculo: "Moto",
+    placa: "IYB-9081"
   }
 ];

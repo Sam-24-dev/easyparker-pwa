@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { useReservaContext } from '../context/ReservaContext';
 import { useParkingContext } from '../context/ParkingContext';
 import { MapPin } from 'lucide-react';
+import { IReserva } from '../types';
 
 export function MisReservas() {
   const navigate = useNavigate();
@@ -16,8 +17,8 @@ export function MisReservas() {
   const activas = getReservasActivas();
   const completadas = getReservasCompletadas();
 
-  const ReservaCard = ({ reservaId, parqueoId, fecha, horaInicio, horaFin, estado }: any) => {
-    const parking = getParkingById(parqueoId);
+  const ReservaCard: React.FC<{ reserva: IReserva }> = ({ reserva }) => {
+    const parking = getParkingById(reserva.parqueoId);
 
     if (!parking) return null;
 
@@ -35,17 +36,24 @@ export function MisReservas() {
                 <h3 className="font-semibold text-gray-900">{parking.nombre}</h3>
                 <p className="text-xs text-gray-600 mt-1">{parking.tipo}</p>
               </div>
-              <Badge variant={estado === 'activa' ? 'success' : 'neutral'} size="sm">
-                {estado === 'activa' ? 'Activa' : 'Completada'}
+              <Badge variant={reserva.estado === 'activa' ? 'success' : 'neutral'} size="sm">
+                {reserva.estado === 'activa' ? 'Activa' : 'Completada'}
               </Badge>
             </div>
 
             <div className="text-sm text-gray-600 mb-3">
-              <p>{fecha} • {horaInicio} - {horaFin}</p>
+              <p>{reserva.fecha} • {reserva.horaInicio} - {reserva.horaFin}</p>
+            </div>
+
+            <div className="flex items-center gap-3 mb-3">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                {reserva.vehiculo === 'Moto' ? '🏍️' : '🚗'} {reserva.vehiculo}
+              </span>
+              <span className="font-mono text-sm text-[#0B1F60] tracking-[0.3em]">{reserva.placa || 'PLACA'}</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <code className="text-xs font-mono font-bold text-primary">{reservaId}</code>
+              <code className="text-xs font-mono font-bold text-primary">{reserva.id}</code>
               <Button
                 size="sm"
                 variant="secondary"
@@ -79,12 +87,7 @@ export function MisReservas() {
                 {activas.map(reserva => (
                   <ReservaCard
                     key={reserva.id}
-                    reservaId={reserva.id}
-                    parqueoId={reserva.parqueoId}
-                    fecha={reserva.fecha}
-                    horaInicio={reserva.horaInicio}
-                    horaFin={reserva.horaFin}
-                    estado={reserva.estado}
+                    reserva={reserva}
                   />
                 ))}
               </div>
@@ -96,12 +99,7 @@ export function MisReservas() {
                 {completadas.map(reserva => (
                   <ReservaCard
                     key={reserva.id}
-                    reservaId={reserva.id}
-                    parqueoId={reserva.parqueoId}
-                    fecha={reserva.fecha}
-                    horaInicio={reserva.horaInicio}
-                    horaFin={reserva.horaFin}
-                    estado={reserva.estado}
+                    reserva={reserva}
                   />
                 ))}
               </div>

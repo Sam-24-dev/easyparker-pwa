@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Search, BookmarkCheck } from 'lucide-react';
 
 const navItems = [
@@ -9,22 +9,44 @@ const navItems = [
 ];
 
 export function BottomNav() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isActive = (to: string) => {
+    if (to === '/buscar') {
+      return pathname === '/buscar' || pathname.startsWith('/parqueo') || pathname.startsWith('/reservar');
+    }
+    return pathname === to;
+  };
+
+  const handleNavClick = (to: string) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigate(to, { replace: false });
+  };
+
   return (
-    <nav className="border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-      <div className="max-w-md mx-auto px-6 py-3 flex items-center justify-between">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#050B2C] to-[#101F6B] border-t border-white/10 shadow-[0_-8px_30px_rgba(3,7,18,0.45)] z-[9999]">
+      <div className="max-w-md mx-auto px-6 py-2.5 flex items-center justify-between">
         {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
+          <button
             key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
-                isActive ? 'text-primary' : 'text-slate-400'
-              }`
-            }
+            type="button"
+            onClick={() => handleNavClick(to)}
+            className={`flex flex-col items-center gap-1 text-xs font-semibold transition-all ${
+              isActive(to)
+                ? 'text-white'
+                : 'text-white/60 hover:text-white/80'
+            }`}
           >
-            <Icon size={22} />
-            <span>{label}</span>
-          </NavLink>
+            <span
+              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl ${
+                isActive(to) ? 'bg-white/15 backdrop-blur text-white shadow-inner' : ''
+              }`}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </span>
+          </button>
         ))}
       </div>
     </nav>

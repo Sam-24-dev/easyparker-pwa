@@ -9,6 +9,8 @@ export function useParkings() {
   const getFilteredParkings = (): IParking[] => {
     let filtered = parkings;
 
+    filtered = filtered.filter(p => p.vehiculosPermitidos.includes(filtros.tipoVehiculo));
+
     if (filtros.soloVerificados) {
       filtered = filtered.filter(p => p.verificado);
     }

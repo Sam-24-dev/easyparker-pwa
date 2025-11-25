@@ -15,7 +15,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400",
     accesiblePMR: true,
     tipo: "garage_privado",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 2,
@@ -31,7 +32,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "09:00 - 22:00"
+    horario: "09:00 - 22:00",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 3,
@@ -47,7 +49,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
     accesiblePMR: false,
     tipo: "comercial",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto"]
   },
   {
     id: 4,
@@ -63,7 +66,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "08:00 - 21:00"
+    horario: "08:00 - 21:00",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 5,
@@ -79,7 +83,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400",
     accesiblePMR: true,
     tipo: "garage_privado",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto"]
   },
   {
     id: 6,
@@ -95,7 +100,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 7,
@@ -111,7 +117,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400",
     accesiblePMR: false,
     tipo: "calle",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Moto"]
   },
   {
     id: 8,
@@ -127,7 +134,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400",
     accesiblePMR: false,
     tipo: "garage_privado",
-    horario: "06:00 - 23:00"
+    horario: "06:00 - 23:00",
+    vehiculosPermitidos: ["Auto"]
   },
   {
     id: 9,
@@ -143,7 +151,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "10:00 - 22:00"
+    horario: "10:00 - 22:00",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 10,
@@ -159,7 +168,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400",
     accesiblePMR: false,
     tipo: "garage_privado",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto"]
   },
   {
     id: 11,
@@ -175,7 +185,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "09:00 - 21:00"
+    horario: "09:00 - 21:00",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 12,
@@ -191,7 +202,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400",
     accesiblePMR: true,
     tipo: "garage_privado",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto"]
   },
   {
     id: 13,
@@ -207,7 +219,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "08:00 - 22:00"
+    horario: "08:00 - 22:00",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 14,
@@ -223,7 +236,8 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400",
     accesiblePMR: true,
     tipo: "comercial",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Auto", "Moto"]
   },
   {
     id: 15,
@@ -239,6 +253,7 @@ export const parkings: IParking[] = [
     foto: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400",
     accesiblePMR: false,
     tipo: "calle",
-    horario: "24 horas"
+    horario: "24 horas",
+    vehiculosPermitidos: ["Moto"]
   }
 ];

@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useReservaContext } from '../context/ReservaContext';
-import { IReserva } from '../types';
+import { IReserva, TipoVehiculo } from '../types';
 
 const timeSlots = [
   { label: '9am - 10am', available: true, start: '09:00', end: '10:00' },
@@ -25,7 +25,7 @@ const paymentMethods = ['Tarjeta de Débito / Crédito', 'Apple Pay', 'Efectivo'
 export function Reservar() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getParkingById } = useParkingContext();
+  const { getParkingById, filtros } = useParkingContext();
   const { agregarReserva } = useReservaContext();
   const parking = getParkingById(Number(id));
 
@@ -34,9 +34,27 @@ export function Reservar() {
   const [selectedMethod, setSelectedMethod] = useState(paymentMethods[0]);
   const [cvv, setCvv] = useState('');
   const [reservaCode, setReservaCode] = useState('');
-  const [error, setError] = useState('');
+  const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<TipoVehiculo>('Auto');
+  const [placa, setPlaca] = useState('');
+  const [slotError, setSlotError] = useState('');
+  const [placaError, setPlacaError] = useState('');
+  const [cvvError, setCvvError] = useState('');
 
   const chosenSlot = useMemo(() => timeSlots.find(slot => slot.label === selectedSlot), [selectedSlot]);
+
+  const vehiculoBase = useMemo<TipoVehiculo | null>(() => {
+    if (!parking) return null;
+    if (parking.vehiculosPermitidos.includes(filtros.tipoVehiculo)) {
+      return filtros.tipoVehiculo;
+    }
+    return parking.vehiculosPermitidos[0] ?? 'Auto';
+  }, [parking, filtros.tipoVehiculo]);
+
+  useEffect(() => {
+    if (vehiculoBase) {
+      setVehiculoSeleccionado(vehiculoBase);
+    }
+  }, [vehiculoBase]);
 
   if (!parking) {
     return (
@@ -54,23 +72,60 @@ export function Reservar() {
     );
   }
 
+  const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
+
   const avanzar = () => {
-    if (step === 1 && !selectedSlot) {
-      setError('Selecciona un horario disponible');
-      return;
+    if (step === 1) {
+      if (!selectedSlot) {
+        setSlotError('Selecciona un horario disponible');
+        return;
+      }
+      setSlotError('');
     }
+
     if (step === 3) {
-      confirmarReserva();
+      const normalizedPlate = placa.toUpperCase();
+      if (!placaRegex.test(normalizedPlate)) {
+        setPlacaError('Ingresa una placa válida (ej: ABC-1234)');
+        return;
+      }
+
+      if (cvv.trim().length < 3) {
+        setCvvError('Ingresa el CVV de tu tarjeta');
+        return;
+      }
+
+      setPlacaError('');
+      setCvvError('');
+      confirmarReserva(normalizedPlate);
       return;
     }
-    setError('');
+
     setStep(prev => (prev + 1) as 1 | 2 | 3 | 4);
   };
 
-  const confirmarReserva = () => {
-    if (!chosenSlot) return;
+  const handlePlacaChange = (value: string) => {
+    const sanitized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+    const formatted = sanitized.length > 3 ? `${sanitized.slice(0, 3)}-${sanitized.slice(3)}` : sanitized;
+    setPlaca(formatted);
+    if (placaError) setPlacaError('');
+  };
+
+  const handleCvvChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9]/g, '').slice(0, 4);
+    setCvv(sanitized);
+    if (cvvError) setCvvError('');
+  };
+
+  const confirmarReserva = (placaConfirmada?: string) => {
+    if (!chosenSlot || !parking) return;
     const code = `7P-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
     setReservaCode(code);
+    if (placaConfirmada) {
+      setPlaca(placaConfirmada.length > 3 && !placaConfirmada.includes('-')
+        ? `${placaConfirmada.slice(0, 3)}-${placaConfirmada.slice(3)}`
+        : placaConfirmada);
+    }
 
     const nuevaReserva: IReserva = {
       id: code,
@@ -79,7 +134,8 @@ export function Reservar() {
       horaInicio: chosenSlot.start,
       horaFin: chosenSlot.end,
       estado: 'activa',
-      vehiculo: 'Auto',
+      vehiculo: vehiculoSeleccionado,
+      placa: placaConfirmada ?? placa.toUpperCase(),
     };
 
     agregarReserva(nuevaReserva);
@@ -107,10 +163,18 @@ export function Reservar() {
   );
 
   const CardSeleccion = () => (
-    <div className="rounded-3xl bg-[#0B1F60] text-white p-5">
+    <div className="rounded-3xl bg-[#0B1F60] text-white p-5 space-y-3">
       <p className="text-sm text-white/70">Seleccionaste</p>
-      <h3 className="text-3xl font-semibold mt-2">7P</h3>
-      <p className="text-white/60 mt-4">Mi Comisariato Urdesa</p>
+      <div>
+        <p className="text-3xl font-semibold">#{parking.id.toString().padStart(2, '0')}</p>
+        <p className="text-white/80 text-base mt-1 leading-tight">{parking.nombre}</p>
+      </div>
+      <div className="flex items-center justify-between text-sm text-white/80">
+        <span>{vehiculoSeleccionado}</span>
+        <span className="font-mono tracking-[0.3em]">
+          {placa ? placa : 'PLACA?'}
+        </span>
+      </div>
     </div>
   );
 
@@ -130,7 +194,7 @@ export function Reservar() {
                   disabled={!slot.available}
                   onClick={() => {
                     setSelectedSlot(slot.label);
-                    setError('');
+                    setSlotError('');
                   }}
                   className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
                     slot.available
@@ -144,7 +208,7 @@ export function Reservar() {
                 </button>
               ))}
             </div>
-            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            {slotError && <p className="text-sm text-red-500 mt-2">{slotError}</p>}
           </div>
 
           <button
@@ -195,6 +259,53 @@ export function Reservar() {
           <StepHeader title="Proceso de pago" />
           <CardSeleccion />
 
+          <div className="rounded-3xl border border-slate-200 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#0B1F60]">Acceso automático</p>
+                <p className="text-xs text-slate-500">Define el vehículo que abrirá la barrera</p>
+              </div>
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700">LPR</span>
+            </div>
+
+            <div className="flex gap-2">
+              {parking.vehiculosPermitidos.map(tipo => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setVehiculoSeleccionado(tipo)}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                    vehiculoSeleccionado === tipo
+                      ? 'border-[#5A63F2] bg-[#5A63F2] text-white'
+                      : 'border-slate-200 text-[#0B1F60]'
+                  }`}
+                >
+                  <span aria-hidden>{tipo === 'Auto' ? '🚗' : '🏍️'}</span>
+                  {tipo}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-[#0B1F60]">Placa del vehículo</label>
+              <input
+                value={placa}
+                onChange={(e) => handlePlacaChange(e.target.value)}
+                placeholder="ABC-1234"
+                autoCapitalize="characters"
+                autoComplete="off"
+                className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
+                  placaError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+                } font-mono tracking-[0.3em] text-center`}
+              />
+              {placaError ? (
+                <p className="text-xs text-red-500 mt-1">{placaError}</p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-1">Usamos cámaras LPR para validar tu placa.</p>
+              )}
+            </div>
+          </div>
+
           <div className="rounded-3xl bg-gradient-to-br from-[#5A63F2] to-[#7A3CF5] text-white p-6">
             <p className="text-sm text-white/80">Tarjeta seleccionada</p>
             <p className="text-2xl font-semibold mt-6 tracking-widest">1478 2285 4595 9874</p>
@@ -209,11 +320,16 @@ export function Reservar() {
             <input
               type="password"
               value={cvv}
-              onChange={(e) => setCvv(e.target.value)}
+              onChange={(e) => handleCvvChange(e.target.value)}
               maxLength={4}
-              className="mt-2 w-full border-2 border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-[#5A63F2]"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
+                cvvError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+              }`}
               placeholder="000"
             />
+            {cvvError && <p className="text-xs text-red-500 mt-1">{cvvError}</p>}
           </div>
 
           <button
@@ -233,6 +349,9 @@ export function Reservar() {
             7P
           </div>
           <p className="text-[#0B1F60] font-medium">Desde {chosenSlot?.start} hasta {chosenSlot?.end}</p>
+          <p className="text-sm text-slate-500">
+            Vehículo {vehiculoSeleccionado} • Placa {placa || '— — —'}
+          </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-sm">
             Recuerda respetar los horarios
           </div>

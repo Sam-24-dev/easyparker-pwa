@@ -12,66 +12,74 @@ import { Detalle } from './pages/Detalle';
 import { Reservar } from './pages/Reservar';
 import { MisReservas } from './pages/MisReservas';
 
+function AppRoutes() {
+  return (
+    <div className="min-h-screen">
+      <Routes>
+        {/* Ruta raíz - Siempre muestra Splash primero */}
+        <Route path="/" element={<Splash />} />
+
+        {/* Rutas públicas (auth flow) */}
+        <Route path="/splash" element={<Splash />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/signup" element={<SignUp />} />
+
+        {/* Rutas protegidas (requieren autenticación) */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/buscar"
+          element={
+            <ProtectedRoute>
+              <Buscar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/parqueo/:id"
+          element={
+            <ProtectedRoute>
+              <Detalle />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reservar/:id"
+          element={
+            <ProtectedRoute>
+              <Reservar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mis-reservas"
+          element={
+            <ProtectedRoute>
+              <MisReservas />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirigir cualquier ruta desconocida a splash */}
+        <Route path="*" element={<Navigate to="/splash" replace />} />
+      </Routes>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <ParkingProvider>
           <ReservaProvider>
-            <Routes>
-              {/* Ruta raíz - Siempre muestra Splash primero */}
-              <Route path="/" element={<Splash />} />
-              
-              {/* Rutas públicas (auth flow) */}
-              <Route path="/splash" element={<Splash />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/signup" element={<SignUp />} />
-
-              {/* Rutas protegidas (requieren autenticación) */}
-              <Route
-                path="/home"
-                element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/buscar"
-                element={
-                  <ProtectedRoute>
-                    <Buscar />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/parqueo/:id"
-                element={
-                  <ProtectedRoute>
-                    <Detalle />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reservar/:id"
-                element={
-                  <ProtectedRoute>
-                    <Reservar />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mis-reservas"
-                element={
-                  <ProtectedRoute>
-                    <MisReservas />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Redirigir cualquier ruta desconocida a splash */}
-              <Route path="*" element={<Navigate to="/splash" replace />} />
-            </Routes>
+            <AppRoutes />
           </ReservaProvider>
         </ParkingProvider>
       </AuthProvider>

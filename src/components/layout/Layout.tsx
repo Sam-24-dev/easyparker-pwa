@@ -11,11 +11,11 @@ export function Layout({ children, showNav = false, backgroundClassName = 'bg-wh
   return (
     <div className={`min-h-screen ${backgroundClassName} text-navy`}>
       <div className="max-w-md mx-auto min-h-screen flex flex-col">
-        <main className="flex-1 px-5 py-6 space-y-6 animate-in fade-in">
+        <main className={`flex-1 px-5 py-6 space-y-6 animate-in fade-in ${showNav ? 'pb-20' : ''}`}>
           {children}
         </main>
-        {showNav && <BottomNav />}
       </div>
+      {showNav && <BottomNav />}
     </div>
   );
 }

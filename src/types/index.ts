@@ -1,3 +1,5 @@
+export type TipoVehiculo = 'Auto' | 'Moto';
+
 export interface IParking {
   id: number;
   nombre: string;
@@ -13,6 +15,7 @@ export interface IParking {
   accesiblePMR: boolean;
   tipo: 'garage_privado' | 'comercial' | 'calle';
   horario: string;
+  vehiculosPermitidos: TipoVehiculo[];
 }
 
 export interface IReview {
@@ -30,7 +33,8 @@ export interface IReserva {
   horaInicio: string;
   horaFin: string;
   estado: 'activa' | 'completada';
-  vehiculo: 'Auto' | 'Moto' | 'Camioneta';
+  vehiculo: TipoVehiculo;
+  placa: string;
 }
 
 export interface IFiltros {
@@ -38,6 +42,7 @@ export interface IFiltros {
   distancia: number;
   accesiblePMR: boolean;
   precioMax: number;
+  tipoVehiculo: TipoVehiculo;
 }
 
 export interface IUsuario {

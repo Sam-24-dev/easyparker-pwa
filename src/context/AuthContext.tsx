@@ -18,12 +18,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const DEFAULT_USERS: Record<string, User> = {
+  'demo@easyparker.com': {
+    id: 'demo-user-1',
+    nombre: 'Samir Demo',
+    email: 'demo@easyparker.com',
+    avatar: 'https://ui-avatars.com/api/?name=Samir+Demo&background=4F46E5&color=fff',
+  },
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Verificar si hay sesión al cargar
   useEffect(() => {
+    const usersDB = localStorage.getItem('easyparker-users-db');
+    if (usersDB) {
+      const storedUsers = JSON.parse(usersDB);
+      const mergedUsers = { ...DEFAULT_USERS, ...storedUsers };
+      localStorage.setItem('easyparker-users-db', JSON.stringify(mergedUsers));
+    } else {
+      localStorage.setItem('easyparker-users-db', JSON.stringify(DEFAULT_USERS));
+    }
+
     const currentUser = localStorage.getItem('easyparker-current-user');
     if (currentUser) {
       setUser(JSON.parse(currentUser));
