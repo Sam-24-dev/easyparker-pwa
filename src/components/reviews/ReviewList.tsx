@@ -1,4 +1,3 @@
-import React from 'react';
 import { IReview } from '../../types/index';
 import { ReviewCard } from './ReviewCard';
 

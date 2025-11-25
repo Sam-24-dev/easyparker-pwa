@@ -18,6 +18,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USERS_DB_KEY = 'easyparker-users-db';
+const CURRENT_USER_KEY = 'easyparker-current-user';
+
 const DEFAULT_USERS: Record<string, User> = {
   'demo@easyparker.com': {
     id: 'demo-user-1',
@@ -27,22 +30,37 @@ const DEFAULT_USERS: Record<string, User> = {
   },
 };
 
+const readUsers = (): Record<string, User> => {
+  try {
+    const usersDB = localStorage.getItem(USERS_DB_KEY);
+    if (usersDB) {
+      return JSON.parse(usersDB);
+    }
+  } catch (error) {
+    console.warn('No se pudo leer la DB de usuarios', error);
+  }
+  return {};
+};
+
+const persistUsers = (users: Record<string, User>) => {
+  try {
+    localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
+  } catch (error) {
+    console.warn('No se pudo guardar la DB de usuarios', error);
+  }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Verificar si hay sesión al cargar
   useEffect(() => {
-    const usersDB = localStorage.getItem('easyparker-users-db');
-    if (usersDB) {
-      const storedUsers = JSON.parse(usersDB);
-      const mergedUsers = { ...DEFAULT_USERS, ...storedUsers };
-      localStorage.setItem('easyparker-users-db', JSON.stringify(mergedUsers));
-    } else {
-      localStorage.setItem('easyparker-users-db', JSON.stringify(DEFAULT_USERS));
-    }
+    const storedUsers = readUsers();
+    const mergedUsers = { ...DEFAULT_USERS, ...storedUsers };
+    persistUsers(mergedUsers);
 
-    const currentUser = localStorage.getItem('easyparker-current-user');
+    const currentUser = localStorage.getItem(CURRENT_USER_KEY);
     if (currentUser) {
       setUser(JSON.parse(currentUser));
     }
@@ -55,14 +73,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Validación básica
         if (email && password.length >= 6) {
           // Buscar usuario en la base de datos
-          const usersDB = localStorage.getItem('easyparker-users-db');
-          const users = usersDB ? JSON.parse(usersDB) : {};
+          const users = readUsers();
           
           if (users[email]) {
             // Usuario encontrado - login exitoso
             const mockUser = users[email];
             setUser(mockUser);
-            localStorage.setItem('easyparker-current-user', JSON.stringify(mockUser));
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(mockUser));
             resolve();
           } else {
             // Usuario NO existe - rechazar login
@@ -80,6 +97,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setTimeout(() => {
         // Validación básica
         if (nombre && email && password.length >= 6) {
+          const users = readUsers();
+          if (users[email]) {
+            reject(new Error('Este correo ya está registrado. Inicia sesión.'));
+            return;
+          }
           // Crear usuario
           const mockUser: User = {
             id: Date.now().toString(),
@@ -88,15 +110,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             avatar: `https://ui-avatars.com/api/?name=${nombre}&background=4F46E5&color=fff`,
           };
           
-          // Guardar en "base de datos" de usuarios
-          const usersDB = localStorage.getItem('easyparker-users-db');
-          const users = usersDB ? JSON.parse(usersDB) : {};
           users[email] = mockUser;
-          localStorage.setItem('easyparker-users-db', JSON.stringify(users));
+          persistUsers(users);
           
           // Guardar como usuario actual
           setUser(mockUser);
-          localStorage.setItem('easyparker-current-user', JSON.stringify(mockUser));
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(mockUser));
           resolve();
         } else {
           reject(new Error('Datos inválidos. El password debe tener al menos 6 caracteres.'));
@@ -107,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('easyparker-current-user');
+    localStorage.removeItem(CURRENT_USER_KEY);
   };
 
   return (

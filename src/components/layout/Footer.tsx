@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppLogo } from '../ui/AppLogo';
 
 export function Footer() {

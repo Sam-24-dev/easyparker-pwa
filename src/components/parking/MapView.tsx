@@ -1,6 +1,7 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import L, { LeafletMouseEvent, Map as LeafletMap } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { IParking } from '../../types/index';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,141 +9,270 @@ interface MapViewProps {
   parkings: IParking[];
   userLat: number;
   userLng: number;
-  onMapClick?: (coords: { lat: number; lng: number }) => void;
-  onLiveUpdate?: (data: IParking[]) => void;
+  highlightedId?: number | null;
+  updatedIds?: number[];
+  suggestionPoint?: { lat: number; lng: number } | null;
+  onMapLongPress?: (coords: { lat: number; lng: number }) => void;
+  onLiveUpdate?: (changedIds: number[]) => void;
+  height?: number;
 }
 
-const createMarkerIcon = (color: string) => {
-  return new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+const markerColors: Record<'green' | 'yellow' | 'red' | 'blue' | 'orange', string> = {
+  green: '#16a34a',
+  yellow: '#eab308',
+  red: '#dc2626',
+  blue: '#2563eb',
+  orange: '#ea580c',
+};
+
+const createMarkerIcon = (
+  color: keyof typeof markerColors,
+  options?: { highlighted?: boolean; pulsing?: boolean }
+) => {
+  const { highlighted = false, pulsing = false } = options || {};
+  const baseColor = markerColors[color];
+
+  const html = `
+    <div class="marker-pin ${highlighted ? 'marker-pin--active' : ''}">
+      ${pulsing ? `<span class="marker-ping" style="border-color:${baseColor}"></span>` : ''}
+      <span class="marker-dot" style="background:${baseColor}"></span>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-marker-icon',
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -28],
   });
 };
 
-function MapContent({ parkings, userLat, userLng }: Omit<MapViewProps, 'onMapClick' | 'onLiveUpdate'>) {
-  const map = useMap();
-  const navigate = useNavigate();
+function MapInteractions({
+  onLongPress,
+}: {
+  onLongPress?: (coords: { lat: number; lng: number }) => void;
+}) {
+  const holdTimer = React.useRef<number | null>(null);
 
-  React.useEffect(() => {
-    if (parkings.length > 0) {
-      const bounds = L.latLngBounds([
-        [userLat, userLng],
-        ...parkings.map(p => [p.lat, p.lng] as [number, number]),
-      ]);
-      map.fitBounds(bounds, { padding: [50, 50] });
+  const clearHold = () => {
+    if (holdTimer.current) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
     }
-  }, [parkings, map, userLat, userLng]);
-
-  const getMarkerColor = (plazas: number) => {
-    if (plazas > 10) return 'green';
-    if (plazas >= 3) return 'yellow';
-    return 'red';
   };
 
-  return (
-    <>
-      <Marker position={[userLat, userLng]} icon={createMarkerIcon('blue')} />
-      {parkings.map(parking => (
-        <Marker
-          key={parking.id}
-          position={[parking.lat, parking.lng]}
-          icon={createMarkerIcon(getMarkerColor(parking.plazasLibres))}
-        >
-          <Popup>
-            <div className="w-48 text-sm">
-              <h4 className="font-semibold mb-1">{parking.nombre}</h4>
-              <p className="text-gray-600 mb-1">${parking.precio}/hora</p>
-              <p className="text-gray-600 mb-3">{parking.plazasLibres} plazas</p>
-              <button
-                onClick={() => navigate(`/parqueo/${parking.id}`)}
-                className="w-full bg-primary text-white text-xs font-medium py-1.5 rounded hover:bg-blue-700 transition-colors"
-              >
-                Ver detalle
-              </button>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </>
-  );
-}
+  const scheduleHold = (event: LeafletMouseEvent) => {
+    if (!onLongPress) return;
+    const { lat, lng } = event.latlng;
+    clearHold();
+    holdTimer.current = window.setTimeout(() => {
+      onLongPress({ lat, lng });
+      if (navigator.vibrate) {
+        navigator.vibrate(60);
+      }
+    }, 500);
+  };
 
-function MapClickHandler({ onMapClick }: { onMapClick?: MapViewProps['onMapClick'] }) {
   useMapEvents({
-    click: (event) => {
-      onMapClick?.({ lat: event.latlng.lat, lng: event.latlng.lng });
+    mousedown(event: LeafletMouseEvent) {
+      scheduleHold(event);
     },
+    mouseup: clearHold,
+    dragstart: clearHold,
+    movestart: clearHold,
+    moveend: clearHold,
   });
+
   return null;
 }
 
-export function MapView({ parkings, userLat, userLng, onMapClick }: MapViewProps) {
-  // Estado local para simulación de actualizaciones (sin causar re-renders en padre)
+export function MapView({
+  parkings,
+  userLat,
+  userLng,
+  highlightedId,
+  updatedIds,
+  suggestionPoint,
+  onMapLongPress,
+  onLiveUpdate,
+  height = 400,
+}: MapViewProps) {
+  const mapRef = React.useRef<LeafletMap | null>(null);
+  const [mapReady, setMapReady] = React.useState(false);
+  const handleMapInstance = React.useCallback((instance: LeafletMap | null) => {
+    if (instance) {
+      mapRef.current = instance;
+      setMapReady(true);
+    } else {
+      mapRef.current = null;
+      setMapReady(false);
+    }
+  }, []);
+  const navigate = useNavigate();
   const [displayParkings, setDisplayParkings] = React.useState<IParking[]>(parkings);
   const [secondsFromUpdate, setSecondsFromUpdate] = React.useState(0);
   const [ping, setPing] = React.useState(false);
+  const [recentUpdated, setRecentUpdated] = React.useState<number[]>([]);
 
-  // Sincronizar cuando parkings del padre cambie
   React.useEffect(() => {
     setDisplayParkings(parkings);
   }, [parkings]);
 
-  // Simulación de actualizaciones cada 8 segundos (solo visual, no actualiza padre)
+  React.useEffect(() => {
+    if (!mapReady || !mapRef.current || !parkings.length) return;
+    const bounds = L.latLngBounds([
+      [userLat, userLng],
+      ...parkings.map((p) => [p.lat, p.lng] as [number, number]),
+    ]);
+    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+  }, [parkings, userLat, userLng, mapReady]);
+
   React.useEffect(() => {
     const interval = setInterval(() => {
       setDisplayParkings((prev) => {
         if (!prev.length) return prev;
-        
+
+        const updatedIdsLocal: number[] = [];
         const updated = prev.map((parking) => {
-          // 30% chance de cambiar
-          if (Math.random() > 0.3) return parking;
+          if (Math.random() > 0.35) return parking;
           const delta = Math.floor(Math.random() * 5) - 2;
           const plazasLibres = Math.max(0, Math.min(parking.plazasLibres + delta, 50));
+          if (plazasLibres !== parking.plazasLibres) {
+            updatedIdsLocal.push(parking.id);
+          }
           return { ...parking, plazasLibres };
         });
 
-        setPing(true);
-        setSecondsFromUpdate(0);
-        setTimeout(() => setPing(false), 800);
-        
+        if (updatedIdsLocal.length) {
+          setPing(true);
+          setSecondsFromUpdate(0);
+          setRecentUpdated(updatedIdsLocal);
+          onLiveUpdate?.(updatedIdsLocal);
+          setTimeout(() => {
+            setPing(false);
+            setRecentUpdated([]);
+          }, 1000);
+        }
+
         return updated;
       });
     }, 8000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [onLiveUpdate]);
 
-  // Contador de segundos
   React.useEffect(() => {
     const timer = setInterval(() => {
       setSecondsFromUpdate((prev) => prev + 1);
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
+  const getMarkerColor = (plazas: number): 'green' | 'yellow' | 'red' => {
+    if (plazas > 10) return 'green';
+    if (plazas >= 3) return 'yellow';
+    return 'red';
+  };
+
+  const handleCenterUser = () => {
+    if (mapRef.current) {
+      mapRef.current.flyTo([userLat, userLng], 16, { duration: 0.8 });
+    }
+  };
+
   return (
-    <div className="relative w-full h-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+    <div className="relative w-full rounded-3xl overflow-hidden border border-white/20 shadow-2xl" style={{ height }}>
       <MapContainer
         center={[userLat, userLng]}
         zoom={14}
         style={{ height: '100%', width: '100%' }}
+        ref={handleMapInstance}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; OpenStreetMap contributors'
         />
-        <MapContent parkings={displayParkings} userLat={userLat} userLng={userLng} />
-        <MapClickHandler onMapClick={onMapClick} />
+
+        <Marker
+          position={[userLat, userLng]}
+          icon={createMarkerIcon('blue', { highlighted: true })}
+        />
+
+        {displayParkings.map((parking) => (
+          <Marker
+            key={parking.id}
+            position={[parking.lat, parking.lng]}
+            icon={createMarkerIcon(getMarkerColor(parking.plazasLibres), {
+              highlighted: parking.id === highlightedId,
+              pulsing: recentUpdated.includes(parking.id) || updatedIds?.includes(parking.id),
+            })}
+          >
+            <Popup>
+              <div className="w-56 text-sm text-[#0B1F60] space-y-2">
+                <div className="rounded-lg overflow-hidden h-28">
+                  <img src={parking.foto} alt={parking.nombre} className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-base">{parking.nombre}</h4>
+                  <p className="text-xs text-slate-500 capitalize">{parking.tipo.replace('_', ' ')}</p>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold">${parking.precio}/hora</span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-white text-[11px] font-semibold ${
+                      parking.plazasLibres > 10
+                        ? 'bg-emerald-500'
+                        : parking.plazasLibres >= 3
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500'
+                    }`}
+                  >
+                    {parking.plazasLibres} plazas
+                  </span>
+                </div>
+                <button
+                  onClick={() => navigate(`/parqueo/${parking.id}`)}
+                  className="w-full rounded-full bg-[#0B1F60] text-white text-xs font-semibold py-2 hover:bg-[#152978] transition"
+                >
+                  Ver detalles
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {suggestionPoint && (
+          <Marker
+            position={[suggestionPoint.lat, suggestionPoint.lng]}
+            icon={createMarkerIcon('orange', { highlighted: true })}
+          />
+        )}
+
+        <MapInteractions onLongPress={onMapLongPress} />
       </MapContainer>
 
       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-xs text-[#0B1F60]">
-        <span className={`inline-flex w-2 h-2 rounded-full ${ping ? 'bg-green-500 animate-ping' : 'bg-green-500'}`} />
+        <span className={`inline-flex w-2.5 h-2.5 rounded-full ${ping ? 'bg-green-500 animate-ping' : 'bg-green-500'}`} />
         Actualizado hace {secondsFromUpdate}s
+      </div>
+
+      <div className="absolute top-4 left-4 flex flex-col gap-2">
+        <button
+          onClick={handleCenterUser}
+          className="inline-flex items-center gap-2 rounded-full bg-white/95 text-[#0B1F60] text-xs font-semibold px-4 py-2 shadow-lg hover:bg-white"
+        >
+          📍 Mi ubicación
+        </button>
+        <div className="rounded-2xl bg-white/90 shadow-lg overflow-hidden">
+          <button className="w-10 h-10 text-[#0B1F60] font-bold" onClick={() => mapRef.current?.zoomIn()}>
+            +
+          </button>
+          <div className="h-[1px] bg-slate-200" />
+          <button className="w-10 h-10 text-[#0B1F60] font-bold" onClick={() => mapRef.current?.zoomOut()}>
+            -
+          </button>
+        </div>
       </div>
     </div>
   );

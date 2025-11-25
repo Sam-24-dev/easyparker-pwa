@@ -1,4 +1,3 @@
-import React from 'react';
 import { IParking } from '../../types/index';
 import { ParkingCard } from './ParkingCard';
 import { useNavigate } from 'react-router-dom';

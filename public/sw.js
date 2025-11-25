@@ -59,3 +59,34 @@ self.addEventListener('activate', (event) => {
 
   self.clients.claim();
 });
+
+self.addEventListener('notificationclick', (event) => {
+  const notification = event.notification;
+  const targetUrl = notification.data?.url || '/mis-reservas';
+  const absoluteUrl = new URL(targetUrl, self.location.origin).href;
+  notification.close();
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          const isWindowClient = 'navigate' in client;
+          if (isWindowClient) {
+            const windowClient = client as WindowClient;
+            windowClient.postMessage({ type: 'notification-action', action: event.action, url: absoluteUrl });
+            return windowClient.navigate(absoluteUrl).then(() => windowClient.focus());
+          }
+          if ('focus' in client) {
+            const focusedClient = client as WindowClient;
+            focusedClient.postMessage({ type: 'notification-action', action: event.action, url: absoluteUrl });
+            return focusedClient.focus();
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(absoluteUrl);
+        }
+        return null;
+      })
+  );
+});

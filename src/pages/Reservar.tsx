@@ -1,37 +1,115 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useReservaContext } from '../context/ReservaContext';
 import { IReserva, TipoVehiculo } from '../types';
+import { Button } from '../components/ui/Button';
+import { QRCodeCanvas } from 'qrcode.react';
+import { toPng } from 'html-to-image';
+import { Calendar, CreditCard, Download, Share2, Wallet } from 'lucide-react';
+import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
 
-const timeSlots = [
-  { label: '9am - 10am', available: true, start: '09:00', end: '10:00' },
-  { label: '10am - 11am', available: true, start: '10:00', end: '11:00' },
-  { label: '11am - 12pm', available: false, start: '11:00', end: '12:00' },
-  { label: '12pm - 1pm', available: true, start: '12:00', end: '13:00' },
-  { label: '1pm - 2pm', available: false, start: '13:00', end: '14:00' },
-  { label: '2pm - 3pm', available: true, start: '14:00', end: '15:00' },
-  { label: '3pm - 4pm', available: true, start: '15:00', end: '16:00' },
-  { label: '4pm - 5pm', available: true, start: '16:00', end: '17:00' },
-  { label: '5pm - 6pm', available: false, start: '17:00', end: '18:00' },
-  { label: '6pm - 7pm', available: true, start: '18:00', end: '19:00' },
-  { label: '7pm - 8pm', available: true, start: '19:00', end: '20:00' },
-  { label: '8pm - 9pm', available: true, start: '20:00', end: '21:00' },
+const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
+
+type SlotRange = { start: number; end: number } | null;
+type PaymentMethodId = 'card' | 'paypal' | 'cash';
+
+interface PaymentOption {
+  id: PaymentMethodId;
+  label: string;
+  helper: string;
+  icon: (props: { size?: number }) => JSX.Element;
+  requiresCvv: boolean;
+}
+
+const PayPalMark = ({ size = 24 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M12 4h8c4.418 0 8 3.582 8 8s-3.582 8-8 8h-5l-1.2 8H8.2L10 4h2z"
+      fill="#003087"
+      opacity="0.8"
+    />
+    <path
+      d="M11 4h8c3.314 0 6 2.686 6 6s-2.686 6-6 6h-5l-1 6H8L10 4h1z"
+      fill="#009cde"
+      opacity="0.8"
+    />
+  </svg>
+);
+
+const paymentOptions: PaymentOption[] = [
+  {
+    id: 'card',
+    label: 'Tarjeta de crédito / débito',
+    helper: 'Visa, Mastercard, Diners',
+    icon: ({ size = 22 }) => <CreditCard size={size} />,
+    requiresCvv: true,
+  },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    helper: 'Sin compartir tu tarjeta',
+    icon: ({ size = 22 }) => <PayPalMark size={size} />,
+    requiresCvv: false,
+  },
+  {
+    id: 'cash',
+    label: 'Efectivo',
+    helper: 'Paga al llegar al parqueo',
+    icon: ({ size = 22 }) => <Wallet size={size} />,
+    requiresCvv: false,
+  },
 ];
 
-const paymentMethods = ['Tarjeta de Débito / Crédito', 'Apple Pay', 'Efectivo'];
+function VehicleIllustration({ tipo }: { tipo: TipoVehiculo }) {
+  if (tipo === 'Moto') {
+    return (
+      <svg viewBox="0 0 120 60" className="w-full h-16" aria-hidden>
+        <circle cx="30" cy="40" r="12" fill="#0B1F60" opacity="0.25" />
+        <circle cx="90" cy="40" r="12" fill="#0B1F60" opacity="0.25" />
+        <rect x="32" y="20" width="60" height="16" rx="8" fill="#0B1F60" opacity="0.15" />
+        <path d="M20 32 L40 18 L70 18" stroke="#0B1F60" strokeWidth="4" strokeLinecap="round" />
+        <path d="M78 18 L98 15" stroke="#0B1F60" strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 140 70" className="w-full h-16" aria-hidden>
+      <rect x="20" y="28" width="100" height="24" rx="12" fill="#0B1F60" opacity="0.2" />
+      <rect x="38" y="16" width="64" height="24" rx="12" fill="#0B1F60" opacity="0.15" />
+      <circle cx="45" cy="56" r="12" fill="#0B1F60" opacity="0.3" />
+      <circle cx="95" cy="56" r="12" fill="#0B1F60" opacity="0.3" />
+      <rect x="58" y="20" width="24" height="10" rx="4" fill="#0B1F60" opacity="0.4" />
+    </svg>
+  );
+}
 
 export function Reservar() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getParkingById, filtros } = useParkingContext();
+  const { getParkingById, filtros, getBlockedSlots } = useParkingContext();
   const { agregarReserva } = useReservaContext();
   const parking = getParkingById(Number(id));
+  const parkingId = parking?.id ?? null;
+  const blockedSlots = useMemo(() => {
+    if (!parkingId) return [];
+    return getBlockedSlots(parkingId);
+  }, [parkingId, getBlockedSlots]);
+  const slotsWithAvailability = useMemo(
+    () => baseTimeSlots.map((slot) => ({ ...slot, available: !blockedSlots.includes(slotKey(slot)) })),
+    [blockedSlots]
+  );
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [selectedSlot, setSelectedSlot] = useState<string>('');
-  const [selectedMethod, setSelectedMethod] = useState(paymentMethods[0]);
+  const [selectedRange, setSelectedRange] = useState<SlotRange>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodId>('card');
   const [cvv, setCvv] = useState('');
   const [reservaCode, setReservaCode] = useState('');
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<TipoVehiculo>('Auto');
@@ -39,8 +117,18 @@ export function Reservar() {
   const [slotError, setSlotError] = useState('');
   const [placaError, setPlacaError] = useState('');
   const [cvvError, setCvvError] = useState('');
+  const voucherRef = useRef<HTMLDivElement | null>(null);
 
-  const chosenSlot = useMemo(() => timeSlots.find(slot => slot.label === selectedSlot), [selectedSlot]);
+  const selectedSlots = useMemo(() => {
+    if (!selectedRange) return [];
+    return slotsWithAvailability.slice(selectedRange.start, selectedRange.end + 1);
+  }, [selectedRange, slotsWithAvailability]);
+
+  const totalHours = selectedSlots.length;
+  const horaInicio = selectedSlots[0]?.start ?? '';
+  const horaFin = selectedSlots[selectedSlots.length - 1]?.end ?? '';
+  const horarioResumen = totalHours ? `${horaInicio} - ${horaFin}` : 'Selecciona un rango';
+  const totalPrice = totalHours * (parking?.precio ?? 0);
 
   const vehiculoBase = useMemo<TipoVehiculo | null>(() => {
     if (!parking) return null;
@@ -55,6 +143,27 @@ export function Reservar() {
       setVehiculoSeleccionado(vehiculoBase);
     }
   }, [vehiculoBase]);
+
+  useEffect(() => {
+    if (selectedSlots.length) {
+      setSlotError('');
+    }
+  }, [selectedSlots.length]);
+
+  useEffect(() => {
+    if (!selectedRange) return;
+    const currentRange = slotsWithAvailability.slice(selectedRange.start, selectedRange.end + 1);
+    if (currentRange.some((slot) => !slot.available)) {
+      setSelectedRange(null);
+    }
+  }, [slotsWithAvailability, selectedRange]);
+
+  useEffect(() => {
+    if (selectedMethod !== 'card') {
+      setCvv('');
+      setCvvError('');
+    }
+  }, [selectedMethod]);
 
   if (!parking) {
     return (
@@ -72,36 +181,54 @@ export function Reservar() {
     );
   }
 
-  const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
+  const handleSlotClick = (slotIndex: number) => {
+    const targetSlot = slotsWithAvailability[slotIndex];
+    if (!targetSlot || !targetSlot.available) return;
+    setSelectedRange((prev) => {
+      if (!prev) return { start: slotIndex, end: slotIndex };
+      if (prev.start === slotIndex && prev.end === slotIndex) return null;
+      if (prev.start === prev.end) {
+        if (slotIndex === prev.start) return null;
+        const start = Math.min(prev.start, slotIndex);
+        const end = Math.max(prev.start, slotIndex);
+        const block = slotsWithAvailability.slice(start, end + 1);
+        if (block.every((slot) => slot.available)) {
+          return { start, end };
+        }
+        return { start: slotIndex, end: slotIndex };
+      }
+      return { start: slotIndex, end: slotIndex };
+    });
+  };
 
   const avanzar = () => {
     if (step === 1) {
-      if (!selectedSlot) {
-        setSlotError('Selecciona un horario disponible');
+      if (!selectedSlots.length) {
+        setSlotError('Selecciona al menos una hora consecutiva disponible');
         return;
       }
-      setSlotError('');
-    }
-
-    if (step === 3) {
-      const normalizedPlate = placa.toUpperCase();
-      if (!placaRegex.test(normalizedPlate)) {
-        setPlacaError('Ingresa una placa válida (ej: ABC-1234)');
-        return;
-      }
-
-      if (cvv.trim().length < 3) {
-        setCvvError('Ingresa el CVV de tu tarjeta');
-        return;
-      }
-
-      setPlacaError('');
-      setCvvError('');
-      confirmarReserva(normalizedPlate);
+      setStep(2);
       return;
     }
 
-    setStep(prev => (prev + 1) as 1 | 2 | 3 | 4);
+    if (step === 2) {
+      if (!placaRegex.test(placa.toUpperCase())) {
+        setPlacaError('Ingresa una placa válida (ej: ABC-1234)');
+        return;
+      }
+      setPlacaError('');
+      setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (selectedMethod === 'card' && (cvv.trim().length < 3 || cvv.trim().length > 4)) {
+        setCvvError('El CVV debe tener 3 o 4 dígitos');
+        return;
+      }
+      setCvvError('');
+      confirmarReserva();
+    }
   };
 
   const handlePlacaChange = (value: string) => {
@@ -117,25 +244,20 @@ export function Reservar() {
     if (cvvError) setCvvError('');
   };
 
-  const confirmarReserva = (placaConfirmada?: string) => {
-    if (!chosenSlot || !parking) return;
-    const code = `7P-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+  const confirmarReserva = () => {
+    if (!parking || !selectedSlots.length) return;
+    const code = `EP-${Math.floor(Math.random() * 9000 + 1000)}`;
     setReservaCode(code);
-    if (placaConfirmada) {
-      setPlaca(placaConfirmada.length > 3 && !placaConfirmada.includes('-')
-        ? `${placaConfirmada.slice(0, 3)}-${placaConfirmada.slice(3)}`
-        : placaConfirmada);
-    }
 
     const nuevaReserva: IReserva = {
       id: code,
       parqueoId: parking.id,
       fecha: new Date().toISOString().split('T')[0],
-      horaInicio: chosenSlot.start,
-      horaFin: chosenSlot.end,
+      horaInicio,
+      horaFin,
       estado: 'activa',
       vehiculo: vehiculoSeleccionado,
-      placa: placaConfirmada ?? placa.toUpperCase(),
+      placa: placa.toUpperCase(),
     };
 
     agregarReserva(nuevaReserva);
@@ -150,10 +272,65 @@ export function Reservar() {
     setStep(prev => (prev - 1) as 1 | 2 | 3 | 4);
   };
 
+  const qrValue = useMemo(() => {
+    if (!reservaCode) return '';
+    return JSON.stringify({ reserva: reservaCode, placa: placa.toUpperCase(), parking: parking.nombre, horario: horarioResumen });
+  }, [reservaCode, placa, parking.nombre, horarioResumen]);
+
+  const handleDownloadComprobante = async () => {
+    if (!voucherRef.current) return;
+    try {
+      const dataUrl = await toPng(voucherRef.current, { backgroundColor: '#f8fafc' });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `reserva-${reservaCode || 'easyparker'}.png`;
+      link.click();
+    } catch (error) {
+      console.error('No se pudo generar el comprobante', error);
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!reservaCode) return;
+    const message = encodeURIComponent(`Hola, esta es mi reserva ${reservaCode} en ${parking.nombre} (${horarioResumen}). Placa ${placa.toUpperCase()}.`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
+  const handleAddToCalendar = () => {
+    if (!horaInicio || !horaFin || !reservaCode) return;
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = new Date(`${today}T${horaInicio}:00`);
+    const endDate = new Date(`${today}T${horaFin}:00`);
+    const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      `UID:${reservaCode}@easyparker`,
+      `DTSTAMP:${formatDate(new Date())}`,
+      `DTSTART:${formatDate(startDate)}`,
+      `DTEND:${formatDate(endDate)}`,
+      `SUMMARY:Reserva EasyParker - ${parking.nombre}`,
+      `DESCRIPTION:Reserva ${reservaCode} para ${placa.toUpperCase()}`,
+      `LOCATION:${parking.nombre}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reserva-${reservaCode}.ics`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
   const StepHeader = ({ title }: { title: string }) => (
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm text-slate-500">Urdesa Central</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Paso {step} de 4</p>
         <h1 className="text-2xl font-semibold text-[#0B1F60]">{title}</h1>
       </div>
       <button onClick={volver} className="text-sm text-[#5A63F2] font-semibold">
@@ -163,17 +340,27 @@ export function Reservar() {
   );
 
   const CardSeleccion = () => (
-    <div className="rounded-3xl bg-[#0B1F60] text-white p-5 space-y-3">
-      <p className="text-sm text-white/70">Seleccionaste</p>
-      <div>
-        <p className="text-3xl font-semibold">#{parking.id.toString().padStart(2, '0')}</p>
-        <p className="text-white/80 text-base mt-1 leading-tight">{parking.nombre}</p>
+    <div className="rounded-3xl bg-[#0B1F60] text-white p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-white/60">Parqueo</p>
+          <p className="text-3xl font-semibold">#{parking.id.toString().padStart(2, '0')}</p>
+          <p className="text-white/80 text-base mt-1 leading-tight">{parking.nombre}</p>
+        </div>
+        <div className="text-right text-sm text-white/80">
+          <p>{vehiculoSeleccionado}</p>
+          <p className="font-mono tracking-[0.3em] mt-1">{placa || 'PLACA?'}</p>
+        </div>
       </div>
       <div className="flex items-center justify-between text-sm text-white/80">
-        <span>{vehiculoSeleccionado}</span>
-        <span className="font-mono tracking-[0.3em]">
-          {placa ? placa : 'PLACA?'}
-        </span>
+        <div>
+          <p className="text-white/60">Horario</p>
+          <p className="font-semibold">{horarioResumen}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-white/60">Total estimado</p>
+          <p className="text-xl font-bold">${totalPrice.toFixed(2)}</p>
+        </div>
       </div>
     </div>
   );
@@ -186,71 +373,92 @@ export function Reservar() {
           <CardSeleccion />
 
           <div>
-            <p className="text-sm text-slate-500 mb-3">Elige un horario</p>
+            <p className="text-sm text-slate-500 mb-3">Elige un rango consecutivo</p>
             <div className="grid grid-cols-3 gap-2">
-              {timeSlots.map(slot => (
-                <button
-                  key={slot.label}
-                  disabled={!slot.available}
-                  onClick={() => {
-                    setSelectedSlot(slot.label);
-                    setSlotError('');
-                  }}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    slot.available
-                      ? selectedSlot === slot.label
-                        ? 'border-[#5A63F2] bg-[#5A63F2] text-white'
-                        : 'border-slate-200 bg-white text-[#0B1F60]'
-                      : 'border-red-200 bg-red-50 text-red-400 cursor-not-allowed'
-                  }`}
-                >
-                  {slot.label}
-                </button>
-              ))}
+              {slotsWithAvailability.map((slot, index) => {
+                const isSelected = selectedRange && index >= selectedRange.start && index <= selectedRange.end;
+                return (
+                  <button
+                    key={slot.label}
+                    disabled={!slot.available}
+                    onClick={() => handleSlotClick(index)}
+                    className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                      !slot.available
+                        ? 'border-red-200 bg-red-50 text-red-300 cursor-not-allowed'
+                        : isSelected
+                        ? 'border-[#5A63F2] bg-[#5A63F2] text-white shadow-lg'
+                        : 'border-slate-200 bg-white text-[#0B1F60] hover:border-[#5A63F2]'
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                );
+              })}
             </div>
             {slotError && <p className="text-sm text-red-500 mt-2">{slotError}</p>}
           </div>
 
-          <button
-            onClick={avanzar}
-            className="w-full rounded-full bg-[#0B1F60] text-white py-3 font-semibold"
-          >
-            Reservar
-          </button>
+          <div className="rounded-3xl border border-slate-100 p-4 flex items-center justify-between bg-white shadow-sm">
+            <div>
+              <p className="text-xs text-slate-500">Duración</p>
+              <p className="text-xl font-semibold text-[#0B1F60]">
+                {totalHours ? `${totalHours} ${totalHours > 1 ? 'horas' : 'hora'}` : '—'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-500">Total estimado</p>
+              <p className="text-3xl font-bold text-[#0B1F60]">${totalPrice.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <Button onClick={avanzar} className="w-full">Continuar</Button>
         </section>
       )}
 
       {step === 2 && (
         <section className="space-y-6">
-          <StepHeader title="Método de pago" />
+          <StepHeader title="Datos del vehículo" />
           <CardSeleccion />
 
-          <div className="space-y-3">
-            {paymentMethods.map(method => (
-              <label
-                key={method}
-                className={`flex items-center gap-3 border rounded-2xl px-4 py-3 cursor-pointer ${
-                  selectedMethod === method ? 'border-[#5A63F2]' : 'border-slate-200'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="method"
-                  className="accent-[#5A63F2]"
-                  checked={selectedMethod === method}
-                  onChange={() => setSelectedMethod(method)}
-                />
-                <span className="text-[#0B1F60] font-medium">{method}</span>
-              </label>
-            ))}
+          <div>
+            <p className="text-sm text-slate-500 mb-3">Selecciona el tipo de vehículo</p>
+            <div className="grid grid-cols-2 gap-3">
+              {parking.vehiculosPermitidos.map((tipo) => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setVehiculoSeleccionado(tipo)}
+                  className={`rounded-3xl border p-4 text-left transition space-y-3 ${
+                    vehiculoSeleccionado === tipo
+                      ? 'border-[#5A63F2] bg-[#5A63F2]/10'
+                      : 'border-slate-200'
+                  }`}
+                >
+                  <VehicleIllustration tipo={tipo} />
+                  <p className="font-semibold text-[#0B1F60]">{tipo}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <button
-            onClick={avanzar}
-            className="w-full rounded-full bg-[#0B1F60] text-white py-3 font-semibold"
-          >
-            Continuar
-          </button>
+          <div>
+            <label className="text-sm font-medium text-[#0B1F60]">Placa del vehículo</label>
+            <input
+              value={placa}
+              onChange={(e) => handlePlacaChange(e.target.value)}
+              placeholder="ABC-1234"
+              className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 text-center font-mono tracking-[0.3em] focus:outline-none ${
+                placaError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+              }`}
+            />
+            {placaError ? (
+              <p className="text-xs text-red-500 mt-1">{placaError}</p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-1">Formato automático con guion.</p>
+            )}
+          </div>
+
+          <Button onClick={avanzar} className="w-full">Continuar</Button>
         </section>
       )}
 
@@ -259,114 +467,157 @@ export function Reservar() {
           <StepHeader title="Proceso de pago" />
           <CardSeleccion />
 
-          <div className="rounded-3xl border border-slate-200 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[#0B1F60]">Acceso automático</p>
-                <p className="text-xs text-slate-500">Define el vehículo que abrirá la barrera</p>
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700">LPR</span>
-            </div>
-
-            <div className="flex gap-2">
-              {parking.vehiculosPermitidos.map(tipo => (
-                <button
-                  key={tipo}
-                  type="button"
-                  onClick={() => setVehiculoSeleccionado(tipo)}
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
-                    vehiculoSeleccionado === tipo
-                      ? 'border-[#5A63F2] bg-[#5A63F2] text-white'
-                      : 'border-slate-200 text-[#0B1F60]'
+          <div className="space-y-3">
+            {paymentOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedMethod(option.id)}
+                className={`w-full flex items-center justify-between rounded-3xl border px-4 py-3 text-left transition ${
+                  selectedMethod === option.id ? 'border-[#5A63F2] bg-[#5A63F2]/10' : 'border-slate-200'
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-[#0B1F60] flex items-center gap-2">
+                    {option.icon({ size: 18 })}
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-slate-500">{option.helper}</p>
+                </div>
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    selectedMethod === option.id ? 'border-[#5A63F2]' : 'border-slate-200'
                   }`}
                 >
-                  <span aria-hidden>{tipo === 'Auto' ? '🚗' : '🏍️'}</span>
-                  {tipo}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#0B1F60]">Placa del vehículo</label>
-              <input
-                value={placa}
-                onChange={(e) => handlePlacaChange(e.target.value)}
-                placeholder="ABC-1234"
-                autoCapitalize="characters"
-                autoComplete="off"
-                className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
-                  placaError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
-                } font-mono tracking-[0.3em] text-center`}
-              />
-              {placaError ? (
-                <p className="text-xs text-red-500 mt-1">{placaError}</p>
-              ) : (
-                <p className="text-xs text-slate-500 mt-1">Usamos cámaras LPR para validar tu placa.</p>
-              )}
-            </div>
+                  {selectedMethod === option.id && <span className="w-2 h-2 rounded-full bg-[#5A63F2]" />}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <div className="rounded-3xl bg-gradient-to-br from-[#5A63F2] to-[#7A3CF5] text-white p-6">
-            <p className="text-sm text-white/80">Tarjeta seleccionada</p>
-            <p className="text-2xl font-semibold mt-6 tracking-widest">1478 2285 4595 9874</p>
-            <div className="flex items-center justify-between mt-8 text-sm">
-              <span>Mirka Sellan</span>
-              <span>12/29</span>
+          {selectedMethod === 'card' && (
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-gradient-to-br from-[#5A63F2] to-[#7A3CF5] text-white p-6">
+                <p className="text-sm text-white/80">Visa Black</p>
+                <p className="text-2xl font-semibold mt-6 tracking-widest">1478 2285 4595 9874</p>
+                <div className="flex items-center justify-between mt-8 text-sm">
+                  <span>Mirka Sellan</span>
+                  <span>12/29</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0B1F60]">CVV</label>
+                <input
+                  type="password"
+                  value={cvv}
+                  onChange={(e) => handleCvvChange(e.target.value)}
+                  maxLength={4}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
+                    cvvError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+                  }`}
+                  placeholder="000"
+                />
+                {cvvError && <p className="text-xs text-red-500 mt-1">{cvvError}</p>}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="text-sm font-medium text-[#0B1F60]">CVV</label>
-            <input
-              type="password"
-              value={cvv}
-              onChange={(e) => handleCvvChange(e.target.value)}
-              maxLength={4}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
-                cvvError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
-              }`}
-              placeholder="000"
-            />
-            {cvvError && <p className="text-xs text-red-500 mt-1">{cvvError}</p>}
-          </div>
+          {selectedMethod === 'paypal' && (
+            <div className="rounded-3xl border border-slate-200 p-4 text-sm text-slate-600">
+              Serás redirigido a PayPal para autorizar el pago seguro sin compartir tus datos con EasyParker.
+            </div>
+          )}
 
-          <button
-            onClick={avanzar}
-            className="w-full rounded-full bg-[#0B1F60] text-white py-3 font-semibold"
-          >
-            Pagar y terminar
-          </button>
+          {selectedMethod === 'cash' && (
+            <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+              Reserva tu espacio y paga al llegar. Muestra tu QR al personal para validar la tarifa preferencial.
+            </div>
+          )}
+
+          <Button onClick={avanzar} className="w-full">Confirmar pago</Button>
         </section>
       )}
 
       {step === 4 && (
-        <section className="text-center space-y-6">
-          <p className="text-sm text-slate-500">Reserva</p>
-          <h1 className="text-2xl font-semibold text-[#0B1F60]">Reserva realizada con éxito</h1>
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[#0B1F60] text-white text-3xl font-bold">
-            7P
+        <section className="space-y-6">
+          <StepHeader title="Comprobante digital" />
+
+          <div
+            ref={voucherRef}
+            className="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-6"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Código</p>
+                <p className="text-3xl font-semibold text-[#0B1F60]">{reservaCode}</p>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+                Confirmada
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-slate-500">Parqueo</p>
+                <p className="font-semibold text-[#0B1F60]">{parking.nombre}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Horario</p>
+                <p className="font-semibold text-[#0B1F60]">{horarioResumen}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Vehículo</p>
+                <p className="font-semibold text-[#0B1F60]">{vehiculoSeleccionado}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Placa</p>
+                <p className="font-mono tracking-[0.3em] text-[#0B1F60]">{placa.toUpperCase()}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <QRCodeCanvas value={qrValue} size={180} bgColor="#ffffff" fgColor="#0B1F60" />
+              <p className="text-sm text-slate-500 text-center">
+                Muestra este QR para abrir la barrera o compártelo con quien vaya a estacionar.
+              </p>
+            </div>
           </div>
-          <p className="text-[#0B1F60] font-medium">Desde {chosenSlot?.start} hasta {chosenSlot?.end}</p>
-          <p className="text-sm text-slate-500">
-            Vehículo {vehiculoSeleccionado} • Placa {placa || '— — —'}
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-sm">
-            Recuerda respetar los horarios
+
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              onClick={handleDownloadComprobante}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+            >
+              <Download size={18} /> Descargar comprobante
+            </button>
+            <button
+              onClick={handleShareWhatsApp}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+            >
+              <Share2 size={18} /> Compartir por WhatsApp
+            </button>
+            <button
+              onClick={handleAddToCalendar}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+            >
+              <Calendar size={18} /> Agregar al calendario
+            </button>
           </div>
-          <div className="space-x-3">
+
+          <div className="flex gap-3">
             <button
               onClick={() => navigate('/buscar')}
-              className="px-5 py-3 rounded-full border border-slate-200 text-[#0B1F60] font-semibold"
+              className="flex-1 rounded-2xl border border-slate-200 py-3 font-semibold text-[#0B1F60]"
             >
-              Volver a buscar
+              Buscar otro parqueo
             </button>
             <button
               onClick={() => navigate('/mis-reservas')}
-              className="px-5 py-3 rounded-full bg-[#0B1F60] text-white font-semibold"
+              className="flex-1 rounded-2xl bg-[#0B1F60] text-white py-3 font-semibold"
             >
-              Ver reservas
+              Ver mis reservas
             </button>
           </div>
         </section>

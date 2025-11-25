@@ -1,13 +1,11 @@
-import React from 'react';
 import { Star } from 'lucide-react';
 
 interface StarRatingProps {
   rating: number;
   size?: 'sm' | 'md' | 'lg';
-  readOnly?: boolean;
 }
 
-export function StarRating({ rating, size = 'md', readOnly = true }: StarRatingProps) {
+export function StarRating({ rating, size = 'md' }: StarRatingProps) {
   const sizeMap = {
     sm: 14,
     md: 18,

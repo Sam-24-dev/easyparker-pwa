@@ -1,15 +1,8 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useAuth } from '../context/AuthContext';
 import { Search, Compass, Megaphone, Calendar, LogOut } from 'lucide-react';
-
-const suggestionCards = [
-  { label: 'Explorar', icon: Compass },
-  { label: 'Anuncios', icon: Megaphone },
-  { label: 'Reservas', icon: Calendar },
-];
 
 export function Home() {
   const navigate = useNavigate();
@@ -18,6 +11,11 @@ export function Home() {
 
   const firstName = user?.nombre?.split(' ')[0] || 'Mirka';
   const previousReservations = allParkings.slice(0, 3); // Siempre muestra los primeros 3
+  const suggestionCards = [
+    { label: 'Explorar', icon: Compass, action: () => navigate('/buscar') },
+    { label: 'Anuncios', icon: Megaphone, action: () => navigate('/buscar?view=promos') },
+    { label: 'Reservas', icon: Calendar, action: () => navigate('/mis-reservas') },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -77,12 +75,18 @@ export function Home() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-[#0B1F60]">Sugerencias</h3>
-              <button className="text-sm text-[#5A63F2] font-semibold">Ver todo</button>
+              <button
+                className="text-sm text-[#5A63F2] font-semibold"
+                onClick={() => navigate('/buscar')}
+              >
+                Ver todo
+              </button>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {suggestionCards.map(({ label, icon: Icon }) => (
+              {suggestionCards.map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}
+                  onClick={action}
                   className="rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center py-4 gap-2 text-[#0B1F60] shadow-sm"
                 >
                   <Icon size={20} />
@@ -96,7 +100,12 @@ export function Home() {
         <section className="rounded-3xl bg-white p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-[#0B1F60]">Reservas anteriores</h3>
-            <button className="text-sm text-[#5A63F2] font-semibold">Ver historial</button>
+            <button
+              className="text-sm text-[#5A63F2] font-semibold"
+              onClick={() => navigate('/mis-reservas?view=history')}
+            >
+              Ver historial
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -112,7 +121,7 @@ export function Home() {
                     {parking.tipo === 'calle' ? 'Zona pública' : 'Urdesa, Guayaquil'}
                   </p>
                 </div>
-                <span className="text-[#5A63F2] text-sm font-semibold">Ver</span>
+                <span className="text-[#5A63F2] text-sm font-semibold">Ver detalles</span>
               </button>
             ))}
           </div>

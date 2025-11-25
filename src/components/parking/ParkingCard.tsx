@@ -1,4 +1,3 @@
-import React from 'react';
 import { IParking } from '../../types/index';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';

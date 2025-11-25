@@ -12,6 +12,7 @@ export interface IParking {
   seguridad: string[];
   calificacion: number;
   foto: string;
+  galeria?: string[];
   accesiblePMR: boolean;
   tipo: 'garage_privado' | 'comercial' | 'calle';
   horario: string;
