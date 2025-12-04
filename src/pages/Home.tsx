@@ -86,7 +86,7 @@ export function Home() {
         <section className="rounded-3xl bg-white p-6 shadow-lg space-y-5">
           <article className="rounded-2xl bg-gradient-to-b from-[#0C1F63] to-[#1C2F74] text-white p-5 relative overflow-hidden">
             <p className="text-sm text-white/70">Parqueos cerca de</p>
-            <h2 className="text-xl font-semibold">Urdesa Central</h2>
+            <h2 className="text-xl font-semibold">Guayaquil</h2>
             
             {/* Mini-mapa con marcadores */}
             <div className="mt-4 h-[150px] rounded-2xl overflow-hidden border border-white/20">

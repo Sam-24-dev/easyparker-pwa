@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParkingContext } from '../../context/ParkingContext';
+import { CheckCircle } from 'lucide-react';
 
 interface FilterBarProps {
   onApply?: () => void;
@@ -32,6 +33,11 @@ export function FilterBar({ onApply, showApplyButton }: FilterBarProps) {
 
   const handlePrecioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiltros = { ...filtros, precioMax: Number(e.target.value) };
+    setFiltros(newFiltros);
+  };
+
+  const handleZonasValidadasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiltros = { ...filtros, soloZonasValidadas: e.target.checked };
     setFiltros(newFiltros);
   };
 
@@ -119,6 +125,26 @@ export function FilterBar({ onApply, showApplyButton }: FilterBarProps) {
         />
         <label htmlFor="pmr" className="text-sm font-medium text-gray-700 cursor-pointer">
           Accesible PMR
+        </label>
+      </div>
+
+      {/* Filtro de zonas validadas */}
+      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-blue-600" />
+          <div>
+            <p className="font-medium text-sm text-gray-800">Solo zonas validadas</p>
+            <p className="text-xs text-gray-500">Parqueos verificados por EasyParker</p>
+          </div>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filtros.soloZonasValidadas ?? true}
+            onChange={handleZonasValidadasChange}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0B1F60]"></div>
         </label>
       </div>
 

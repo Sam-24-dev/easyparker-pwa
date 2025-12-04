@@ -1,9 +1,12 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polygon, useMapEvents } from 'react-leaflet';
 import L, { LeafletMouseEvent, Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { IParking } from '../../types/index';
 import { useNavigate } from 'react-router-dom';
+import { VALIDATED_ZONES } from '../../data/validatedZones';
+import { MapLegend } from './MapLegend';
+import { analytics } from '../../utils/analytics';
 
 interface MapViewProps {
   parkings: IParking[];
@@ -181,6 +184,15 @@ export function MapView({
     }
   };
 
+  const handleMarkerClick = (parking: IParking) => {
+    analytics.track('marcador_clickeado', {
+      parkingId: parking.id,
+      nombre: parking.nombre,
+      zonaId: parking.zonaId,
+      zonaValidada: parking.zonaValidada
+    });
+  };
+
   return (
     <div className="relative w-full rounded-3xl overflow-hidden border border-white/20 shadow-2xl z-0" style={{ height }}>
       <MapContainer
@@ -194,10 +206,43 @@ export function MapView({
           attribution='&copy; OpenStreetMap contributors'
         />
 
+        {/* Polígonos de zonas validadas */}
+        {VALIDATED_ZONES.map(zone => (
+          <Polygon
+            key={zone.id}
+            positions={zone.bounds}
+            pathOptions={{
+              color: zone.color,
+              fillColor: zone.color,
+              fillOpacity: 0.15,
+              weight: 3,
+              dashArray: '10, 10'
+            }}
+          >
+            <Popup>
+              <div className="text-center p-1">
+                <strong className="text-base text-[#0B1F60]">{zone.name}</strong>
+                <p className="text-sm text-green-600 mt-1 font-medium">
+                  ✅ Zona Validada
+                </p>
+                <p className="text-xs text-gray-500">
+                  {zone.parkingCount} parqueos verificados
+                </p>
+              </div>
+            </Popup>
+          </Polygon>
+        ))}
+
         <Marker
           position={[userLat, userLng]}
           icon={createMarkerIcon('blue', { highlighted: true })}
-        />
+        >
+          <Popup>
+            <div className="text-center">
+              <strong className="text-[#0B1F60]">📍 Tu ubicación</strong>
+            </div>
+          </Popup>
+        </Marker>
 
         {displayParkings.map((parking) => (
           <Marker
@@ -207,6 +252,9 @@ export function MapView({
               highlighted: parking.id === highlightedId,
               pulsing: recentUpdated.includes(parking.id) || updatedIds?.includes(parking.id),
             })}
+            eventHandlers={{
+              click: () => handleMarkerClick(parking)
+            }}
           >
             <Popup>
               <div className="w-56 text-sm text-[#0B1F60] space-y-2">
@@ -214,7 +262,14 @@ export function MapView({
                   <img src={parking.foto} alt={parking.nombre} loading="lazy" className="w-full h-full object-cover bg-slate-200" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-base">{parking.nombre}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-base">{parking.nombre}</h4>
+                    {parking.zonaValidada && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">
+                        ✓
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 capitalize">{parking.tipo.replace('_', ' ')}</p>
                 </div>
                 <div className="flex items-center justify-between text-xs">
@@ -251,6 +306,9 @@ export function MapView({
 
         <MapInteractions onLongPress={onMapLongPress} />
       </MapContainer>
+
+      {/* Leyenda del mapa */}
+      <MapLegend />
 
       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-xs text-[#0B1F60]">
         <span className={`inline-flex w-2.5 h-2.5 rounded-full ${ping ? 'bg-green-500 animate-ping' : 'bg-green-500'}`} />

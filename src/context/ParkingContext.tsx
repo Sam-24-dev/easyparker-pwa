@@ -20,10 +20,11 @@ const STORAGE_KEY = 'easyparker:filtros';
 
 const defaultFilters: IFiltros = {
   soloVerificados: false,
-  distancia: 500,
+  distancia: 10000, // 10km para abarcar toda la ciudad
   accesiblePMR: false,
-  precioMax: 3.5,
+  precioMax: 10.0,
   tipoVehiculo: 'Auto',
+  soloZonasValidadas: false, // Desactivado para mostrar los 35 parqueos
 };
 
 type ParkingState = IParking & {

@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkings } from '../hooks/useParkings';
 import { useParkingContext } from '../context/ParkingContext';
-import { MapPin, SlidersHorizontal, Star, Search as SearchIcon, Loader2, MapPinOff, Bell } from 'lucide-react';
+import { MapPin, SlidersHorizontal, Star, Search as SearchIcon, Loader2, MapPinOff, Bell, Clock, X, Navigation } from 'lucide-react';
 import { MapView } from '../components/parking/MapView';
 import { Modal } from '../components/ui/Modal';
 import { FilterBar } from '../components/parking/FilterBar';
 import { Button } from '../components/ui/Button';
 import { FavoriteButton } from '../components/ui/FavoriteButton';
+import { useSearchHistory } from '../hooks/useSearchHistory';
+import { analytics } from '../utils/analytics';
+import { SEARCH_ZONES, getZoneNameFromSearch, matchesParkingSearch } from '../data/searchZones';
 
 type SortMode = 'distance' | 'price' | 'rating';
 
@@ -16,8 +19,9 @@ const NOTIFICATION_STORAGE_KEY = 'easyparker-notify-availability';
 
 export function Buscar() {
   const navigate = useNavigate();
-  const { parkings } = useParkings();
+  const { parkings: recommendedParkings, totalParkings } = useParkings();
   const { usuario, resetFiltros, filtros, setFiltros } = useParkingContext();
+  const { history, addSearch, clearHistory } = useSearchHistory();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('distance');
@@ -67,9 +71,16 @@ export function Buscar() {
   }, [toastMessage]);
 
   const visibleParkings = useMemo(() => {
-    const filtered = parkings
+    const sourceParkings = searchTerm.trim() ? totalParkings : recommendedParkings;
+
+    const filtered = sourceParkings
       .filter((parking) => parking.plazasLibres > 0)
-      .filter((parking) => parking.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
+      .filter((parking) => {
+        // Búsqueda por nombre o zona - funciona con los 35 parqueos
+        if (!searchTerm.trim()) return true;
+        return matchesParkingSearch(parking, searchTerm);
+      });
+    // Nota: Removemos el filtro de zonas validadas de aquí para mostrar todos los 35
 
     const sorted = [...filtered].sort((a, b) => {
       if (sortMode === 'price') return a.precio - b.precio;
@@ -78,7 +89,12 @@ export function Buscar() {
     });
 
     return sorted;
-  }, [parkings, searchTerm, sortMode]);
+  }, [recommendedParkings, totalParkings, searchTerm, sortMode]);
+
+  // Obtener nombre de zona dinámico
+  const currentZoneName = useMemo(() => {
+    return getZoneNameFromSearch(searchTerm);
+  }, [searchTerm]);
 
   const handleLiveUpdate = (ids: number[]) => {
     setIsUpdating(true);
@@ -160,8 +176,8 @@ export function Buscar() {
       <section className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-500">Buscar un estacionamiento</p>
-            <h1 className="text-2xl font-semibold text-[#0B1F60]">Urdesa Central</h1>
+            <p className="text-sm text-slate-500">Buscar estacionamiento en</p>
+            <h1 className="text-2xl font-semibold text-[#0B1F60]">{currentZoneName}</h1>
           </div>
           <button
             className="p-3 rounded-2xl border border-slate-200"
@@ -180,10 +196,74 @@ export function Buscar() {
               id="search-parking"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar parqueo por nombre..."
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && searchTerm.trim()) {
+                  addSearch(searchTerm.trim());
+                  analytics.track('search', { query: searchTerm.trim() });
+                }
+              }}
+              placeholder="Buscar por zona: mall, centro, kennedy..."
               className="w-full rounded-2xl border-2 border-[#E0E6FF] bg-white px-12 py-3 text-sm font-medium text-[#0B1F60] focus:border-[#0B1F60] focus:outline-none"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full"
+                aria-label="Limpiar búsqueda"
+              >
+                <X size={16} className="text-slate-400" />
+              </button>
+            )}
           </div>
+          
+          {/* Zonas sugeridas - mostrar cuando no hay búsqueda */}
+          {!searchTerm && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <Navigation size={12} />
+                Explora por zona:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SEARCH_ZONES.map((zone) => (
+                  <button
+                    key={zone.id}
+                    onClick={() => {
+                      setSearchTerm(zone.keywords[0]);
+                      analytics.track('zone_select', { zone: zone.name });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-blue-50 hover:to-blue-100 border border-slate-200 hover:border-blue-300 rounded-full text-xs text-slate-700 hover:text-blue-700 transition-all"
+                  >
+                    <span>{zone.icon}</span>
+                    <span>{zone.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Historial de búsquedas */}
+          {history.length > 0 && !searchTerm && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Clock size={14} className="text-slate-400" />
+              {history.map((term, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSearchTerm(term)}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full text-xs text-slate-600 transition-colors"
+                >
+                  {term}
+                </button>
+              ))}
+              <button
+                onClick={clearHistory}
+                className="p-1 hover:bg-slate-100 rounded-full transition-colors"
+                aria-label="Limpiar historial"
+              >
+                <X size={14} className="text-slate-400" />
+              </button>
+            </div>
+          )}
+          
           <p className="mt-2 text-xs text-slate-500">
             Mostrando {visibleParkings.length} parqueos disponibles
           </p>

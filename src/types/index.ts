@@ -17,6 +17,8 @@ export interface IParking {
   tipo: 'garage_privado' | 'comercial' | 'calle';
   horario: string;
   vehiculosPermitidos: TipoVehiculo[];
+  zonaValidada?: boolean;
+  zonaId?: string;
 }
 
 export interface IReview {
@@ -44,6 +46,7 @@ export interface IFiltros {
   accesiblePMR: boolean;
   precioMax: number;
   tipoVehiculo: TipoVehiculo;
+  soloZonasValidadas?: boolean;
 }
 
 export interface IUsuario {

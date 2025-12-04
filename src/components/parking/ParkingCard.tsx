@@ -2,7 +2,7 @@ import { IParking } from '../../types/index';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { StarRating } from '../ui/StarRating';
-import { MapPin, DollarSign } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle } from 'lucide-react';
 
 interface ParkingCardProps {
   parking: IParking;
@@ -12,13 +12,19 @@ interface ParkingCardProps {
 export function ParkingCard({ parking, onClick }: ParkingCardProps) {
   return (
     <Card hover onClick={onClick} className="overflow-hidden">
-      <div className="aspect-video bg-gray-200 overflow-hidden">
+      <div className="aspect-video bg-gray-200 overflow-hidden relative">
         <img
           src={parking.foto}
           alt={parking.nombre}
           loading="lazy"
           className="w-full h-full object-cover hover:scale-105 transition-transform"
         />
+        {parking.zonaValidada && (
+          <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded-full text-xs font-medium shadow-lg">
+            <CheckCircle className="w-3 h-3" />
+            Zona Validada
+          </div>
+        )}
       </div>
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-2">

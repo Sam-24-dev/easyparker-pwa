@@ -17,7 +17,8 @@ import {
   Star,
   Zap,
   X,
-  ExternalLink
+  ExternalLink,
+  CheckCircle
 } from 'lucide-react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
@@ -337,8 +338,14 @@ export function Detalle() {
               <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Buscar un estacionamiento</p>
               <h1 className="text-3xl font-semibold text-slate-900 mt-1">{parking.nombre}</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <FavoriteButton parkingId={parking.id} size="md" />
+              {parking.zonaValidada && (
+                <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  <CheckCircle className="w-3 h-3" />
+                  Zona Validada
+                </div>
+              )}
               {parking.verificado && <Badge variant="success">VERIFICADO</Badge>}
             </div>
           </div>
