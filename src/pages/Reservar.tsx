@@ -117,6 +117,8 @@ export function Reservar() {
   const [slotError, setSlotError] = useState('');
   const [placaError, setPlacaError] = useState('');
   const [cvvError, setCvvError] = useState('');
+  const [confirmedHoraInicio, setConfirmedHoraInicio] = useState('');
+  const [confirmedHoraFin, setConfirmedHoraFin] = useState('');
   const voucherRef = useRef<HTMLDivElement | null>(null);
 
   const selectedSlots = useMemo(() => {
@@ -164,6 +166,14 @@ export function Reservar() {
       setCvvError('');
     }
   }, [selectedMethod]);
+
+  const qrValue = useMemo(() => {
+    if (!reservaCode || !parking) return '';
+    const horarioQR = confirmedHoraInicio && confirmedHoraFin 
+      ? `${confirmedHoraInicio} - ${confirmedHoraFin}` 
+      : horarioResumen;
+    return JSON.stringify({ reserva: reservaCode, placa: placa.toUpperCase(), parking: parking.nombre, horario: horarioQR });
+  }, [reservaCode, placa, parking, horarioResumen, confirmedHoraInicio, confirmedHoraFin]);
 
   if (!parking) {
     return (
@@ -248,6 +258,10 @@ export function Reservar() {
     if (!parking || !selectedSlots.length) return;
     const code = `EP-${Math.floor(Math.random() * 9000 + 1000)}`;
     setReservaCode(code);
+    
+    // Guardar horario confirmado antes de que se resetee el estado
+    setConfirmedHoraInicio(horaInicio);
+    setConfirmedHoraFin(horaFin);
 
     const nuevaReserva: IReserva = {
       id: code,
@@ -269,13 +283,14 @@ export function Reservar() {
       navigate('/buscar');
       return;
     }
+    // Si estamos en paso 4 (QR generado), la reserva ya está hecha
+    // No permitir volver al paso de pago - ir a buscar
+    if (step === 4) {
+      navigate('/buscar');
+      return;
+    }
     setStep(prev => (prev - 1) as 1 | 2 | 3 | 4);
   };
-
-  const qrValue = useMemo(() => {
-    if (!reservaCode) return '';
-    return JSON.stringify({ reserva: reservaCode, placa: placa.toUpperCase(), parking: parking.nombre, horario: horarioResumen });
-  }, [reservaCode, placa, parking.nombre, horarioResumen]);
 
   const handleDownloadComprobante = async () => {
     if (!voucherRef.current) return;
@@ -292,15 +307,20 @@ export function Reservar() {
 
   const handleShareWhatsApp = () => {
     if (!reservaCode) return;
-    const message = encodeURIComponent(`Hola, esta es mi reserva ${reservaCode} en ${parking.nombre} (${horarioResumen}). Placa ${placa.toUpperCase()}.`);
+    const horarioMsg = confirmedHoraInicio && confirmedHoraFin 
+      ? `${confirmedHoraInicio} - ${confirmedHoraFin}` 
+      : horarioResumen;
+    const message = encodeURIComponent(`Hola, esta es mi reserva ${reservaCode} en ${parking.nombre} (${horarioMsg}). Placa ${placa.toUpperCase()}.`);
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
   const handleAddToCalendar = () => {
-    if (!horaInicio || !horaFin || !reservaCode) return;
+    const calHoraInicio = confirmedHoraInicio || horaInicio;
+    const calHoraFin = confirmedHoraFin || horaFin;
+    if (!calHoraInicio || !calHoraFin || !reservaCode) return;
     const today = new Date().toISOString().split('T')[0];
-    const startDate = new Date(`${today}T${horaInicio}:00`);
-    const endDate = new Date(`${today}T${horaFin}:00`);
+    const startDate = new Date(`${today}T${calHoraInicio}:00`);
+    const endDate = new Date(`${today}T${calHoraFin}:00`);
     const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
     const ics = [
@@ -330,12 +350,14 @@ export function Reservar() {
   const StepHeader = ({ title }: { title: string }) => (
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Paso {step} de 4</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">{step === 4 ? '¡Listo!' : `Paso ${step} de 4`}</p>
         <h1 className="text-2xl font-semibold text-[#0B1F60]">{title}</h1>
       </div>
-      <button onClick={volver} className="text-sm text-[#5A63F2] font-semibold">
-        {step === 1 ? 'Volver' : 'Atrás'}
-      </button>
+      {step !== 4 && (
+        <button onClick={volver} className="text-sm text-[#5A63F2] font-semibold">
+          {step === 1 ? 'Volver' : 'Atrás'}
+        </button>
+      )}
     </div>
   );
 
@@ -565,7 +587,7 @@ export function Reservar() {
               </div>
               <div>
                 <p className="text-slate-500">Horario</p>
-                <p className="font-semibold text-[#0B1F60]">{horarioResumen}</p>
+                <p className="font-semibold text-[#0B1F60]">{confirmedHoraInicio} - {confirmedHoraFin}</p>
               </div>
               <div>
                 <p className="text-slate-500">Vehículo</p>

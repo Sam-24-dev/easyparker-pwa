@@ -34,6 +34,29 @@
       transform: scale(1);
     }
   }
+  
+  /* Safe area padding para dispositivos con notch */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+}
+
+/* Asegurar que el mapa de Leaflet tenga z-index bajo */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-pane {
+  z-index: 1 !important;
+}
+
+.leaflet-control {
+  z-index: 2 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 2 !important;
 }
 
 .custom-marker-icon .marker-pin {
@@ -79,5 +102,21 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+/* Animación slide-up para toasts */
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }

@@ -16,6 +16,7 @@ export function ParkingCard({ parking, onClick }: ParkingCardProps) {
         <img
           src={parking.foto}
           alt={parking.nombre}
+          loading="lazy"
           className="w-full h-full object-cover hover:scale-105 transition-transform"
         />
       </div>

@@ -7,7 +7,7 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ onApply, showApplyButton }: FilterBarProps) {
-  const { filtros, setFiltros } = useParkingContext();
+  const { filtros, setFiltros, resetFiltros } = useParkingContext();
 
   const handleTipoVehiculoChange = (tipo: 'Auto' | 'Moto') => {
     if (filtros.tipoVehiculo === tipo) return;
@@ -33,6 +33,10 @@ export function FilterBar({ onApply, showApplyButton }: FilterBarProps) {
   const handlePrecioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiltros = { ...filtros, precioMax: Number(e.target.value) };
     setFiltros(newFiltros);
+  };
+
+  const handleLimpiarFiltros = () => {
+    resetFiltros();
   };
 
   return (
@@ -117,14 +121,24 @@ export function FilterBar({ onApply, showApplyButton }: FilterBarProps) {
           Accesible PMR
         </label>
       </div>
+
       {showApplyButton && (
-        <button
-          type="button"
-          onClick={onApply}
-          className="w-full rounded-2xl bg-[#0B1F60] text-white font-semibold py-3"
-        >
-          Guardar cambios
-        </button>
+        <div className="space-y-2 pt-2">
+          <button
+            type="button"
+            onClick={onApply}
+            className="w-full rounded-2xl bg-[#0B1F60] text-white font-semibold py-3"
+          >
+            Aplicar filtros
+          </button>
+          <button
+            type="button"
+            onClick={handleLimpiarFiltros}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold py-3"
+          >
+            Limpiar filtros
+          </button>
+        </div>
       )}
     </div>
   );

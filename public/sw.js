@@ -1,5 +1,11 @@
-const CACHE_NAME = 'easyparker-v3';
-const CORE_ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'easyparker-v4';
+const CORE_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/logo/LOGO EASYPARK-01.png',
+  '/logo/LOGO EASYPARK-02.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

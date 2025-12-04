@@ -3,18 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkings } from '../hooks/useParkings';
 import { useParkingContext } from '../context/ParkingContext';
-import { MapPin, SlidersHorizontal, Star, Search as SearchIcon, Loader2 } from 'lucide-react';
+import { MapPin, SlidersHorizontal, Star, Search as SearchIcon, Loader2, MapPinOff, Bell } from 'lucide-react';
 import { MapView } from '../components/parking/MapView';
 import { Modal } from '../components/ui/Modal';
 import { FilterBar } from '../components/parking/FilterBar';
 import { Button } from '../components/ui/Button';
+import { FavoriteButton } from '../components/ui/FavoriteButton';
 
 type SortMode = 'distance' | 'price' | 'rating';
+
+const NOTIFICATION_STORAGE_KEY = 'easyparker-notify-availability';
 
 export function Buscar() {
   const navigate = useNavigate();
   const { parkings } = useParkings();
-  const { usuario, resetFiltros } = useParkingContext();
+  const { usuario, resetFiltros, filtros, setFiltros } = useParkingContext();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('distance');
@@ -28,10 +31,27 @@ export function Buscar() {
   const [toastMessage, setToastMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdatedIds, setLastUpdatedIds] = useState<number[]>([]);
+  
+  // GPS/Location states
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 900);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Check GPS permission on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'denied') {
+          setLocationDenied(true);
+          setLocationModalOpen(true);
+        }
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -86,6 +106,53 @@ export function Buscar() {
     setSuggestionForm({ nombre: '', comentario: '' });
   };
 
+  const handleRequestLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setLocationModalOpen(false);
+        setLocationDenied(false);
+        setToastMessage('Ubicación activada');
+      },
+      () => {
+        setToastMessage('No se pudo obtener tu ubicación');
+      }
+    );
+  };
+
+  const handleManualSearch = () => {
+    setLocationModalOpen(false);
+    if (manualAddress) {
+      setToastMessage(`Buscando en: ${manualAddress}`);
+    }
+  };
+
+  const handleExpandRadius = () => {
+    setFiltros({ ...filtros, distancia: 1000 });
+    setToastMessage('Radio expandido a 1km');
+  };
+
+  const handleNotifyMe = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        localStorage.setItem(NOTIFICATION_STORAGE_KEY, 'true');
+        setToastMessage('Te notificaremos cuando haya espacio');
+        
+        // Simular notificación después de 10 segundos
+        setTimeout(() => {
+          new Notification('EasyParker', {
+            body: '¡Ya hay espacios disponibles en Urdesa!',
+            icon: '/logo/easyparker-icon.png',
+          });
+        }, 10000);
+      } else {
+        setToastMessage('Necesitamos permiso para notificarte');
+      }
+    } catch {
+      setToastMessage('Tu navegador no soporta notificaciones');
+    }
+  };
+
   const showEmptyState = !isLoading && visibleParkings.length === 0;
 
   return (
@@ -132,21 +199,39 @@ export function Buscar() {
             </div>
           </div>
         ) : showEmptyState ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-[#0B1F60] space-y-4 shadow-lg">
-            <div className="text-5xl">🅿️</div>
-            <h3 className="text-xl font-semibold">No hay parqueos disponibles con estos filtros</h3>
+          <div className="rounded-3xl bg-white p-8 text-center text-[#0B1F60] space-y-5 shadow-lg">
+            <div className="flex justify-center">
+              <MapPinOff size={48} className="text-slate-300" />
+            </div>
+            <h3 className="text-xl font-semibold">No hay parqueos disponibles</h3>
             <p className="text-sm text-slate-500">
-              Intenta ajustar los filtros o busca por otro nombre.
+              No encontramos parqueos con los filtros seleccionados. Puedes expandir tu búsqueda o recibir una notificación cuando haya disponibilidad.
             </p>
-            <button
-              onClick={() => {
-                resetFiltros();
-                setSearchTerm('');
-              }}
-              className="rounded-full bg-[#0B1F60] text-white font-semibold px-6 py-3"
-            >
-              Limpiar filtros
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleExpandRadius}
+                className="w-full rounded-full bg-[#0B1F60] text-white font-semibold px-6 py-3 flex items-center justify-center gap-2"
+              >
+                <MapPin size={18} />
+                Expandir búsqueda a 1km
+              </button>
+              <button
+                onClick={() => {
+                  resetFiltros();
+                  setSearchTerm('');
+                }}
+                className="w-full rounded-full border-2 border-[#0B1F60] text-[#0B1F60] font-semibold px-6 py-3"
+              >
+                Limpiar filtros
+              </button>
+              <button
+                onClick={handleNotifyMe}
+                className="w-full rounded-full bg-amber-500 text-white font-semibold px-6 py-3 flex items-center justify-center gap-2"
+              >
+                <Bell size={18} />
+                Notificarme cuando haya espacio
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -224,9 +309,12 @@ export function Buscar() {
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
-                      <div className="flex items-center justify-end gap-1 text-[#0B1F60] font-semibold">
-                        <Star size={14} fill="#0B1F60" className="text-[#0B1F60]" />
-                        {parking.calificacion.toFixed(1)}
+                      <div className="flex items-center gap-2">
+                        <FavoriteButton parkingId={parking.id} size="sm" />
+                        <div className="flex items-center justify-end gap-1 text-[#0B1F60] font-semibold">
+                          <Star size={14} fill="#0B1F60" className="text-[#0B1F60]" />
+                          {parking.calificacion.toFixed(1)}
+                        </div>
                       </div>
                       <span
                         className={`px-2 py-1 rounded-full text-white text-[11px] font-semibold ${
@@ -314,12 +402,12 @@ export function Buscar() {
       </Modal>
 
       {isFiltersOpen && (
-        <div className="fixed top-0 left-0 right-0 bottom-[60px] z-40 flex items-end">
+        <div className="fixed inset-0 z-50 flex items-end">
           <div
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setIsFiltersOpen(false)}
           />
-          <div className="relative w-full bg-white rounded-t-3xl p-6 space-y-4 shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="relative w-full bg-white rounded-t-3xl p-6 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto z-50 pb-safe">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-[#0B1F60]">Filtros avanzados</h3>
               <button
@@ -337,8 +425,59 @@ export function Buscar() {
         </div>
       )}
 
+      {/* Modal de ubicación GPS */}
+      <Modal
+        isOpen={locationModalOpen}
+        onClose={() => setLocationModalOpen(false)}
+        title="Necesitamos tu ubicación"
+      >
+        <div className="space-y-4">
+          {locationDenied ? (
+            <>
+              <p className="text-sm text-slate-600">
+                Has denegado el acceso a tu ubicación. Puedes buscar manualmente o permitir el acceso desde la configuración de tu navegador.
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={manualAddress}
+                  onChange={(e) => setManualAddress(e.target.value)}
+                  placeholder="Ingresa una dirección o zona..."
+                  className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm focus:border-[#0B1F60] focus:outline-none"
+                />
+                <Button
+                  onClick={handleManualSearch}
+                  className="w-full"
+                  disabled={!manualAddress.trim()}
+                >
+                  Buscar en esta zona
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600">
+                Para mostrarte los parqueos más cercanos, necesitamos acceder a tu ubicación GPS.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button onClick={handleRequestLocation} className="w-full">
+                  <MapPin size={18} className="mr-2" />
+                  Permitir ubicación
+                </Button>
+                <button
+                  onClick={() => setLocationDenied(true)}
+                  className="w-full rounded-full border-2 border-slate-300 text-slate-600 font-semibold px-6 py-3"
+                >
+                  Buscar manualmente
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
       {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0B1F60] text-white text-sm font-semibold px-4 py-3 rounded-full shadow-lg animate-in">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0B1F60] text-white text-sm font-semibold px-4 py-3 rounded-full shadow-lg animate-slide-up z-50">
           {toastMessage}
         </div>
       )}

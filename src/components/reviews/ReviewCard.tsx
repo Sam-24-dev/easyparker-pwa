@@ -12,7 +12,8 @@ export function ReviewCard({ review }: ReviewCardProps) {
         <img
           src={review.avatar}
           alt={review.usuario}
-          className="w-10 h-10 rounded-full flex-shrink-0"
+          loading="lazy"
+          className="w-10 h-10 rounded-full flex-shrink-0 bg-slate-200"
         />
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">

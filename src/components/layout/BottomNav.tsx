@@ -27,8 +27,8 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#050B2C] to-[#101F6B] border-t border-white/10 shadow-[0_-8px_30px_rgba(3,7,18,0.45)] z-[9999]">
-      <div className="max-w-md mx-auto px-6 py-2.5 flex items-center justify-between">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#050B2C] to-[#101F6B] border-t border-white/10 shadow-[0_-8px_30px_rgba(3,7,18,0.45)] z-[9999] pb-safe">
+      <div className="max-w-md mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
         {navItems.map(({ to, label, icon: Icon }) => {
           const showBadge = to === '/mis-reservas' && activeReservations > 0;
           return (

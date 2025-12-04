@@ -1,9 +1,12 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { IReserva } from '../types/index';
-import { reservasMock } from '../data/reservasMock';
 import { useParkingContext } from './ParkingContext';
 import { useReservationReminders } from '../hooks/useReservationReminders';
 import { getAdditionalSlotKeys, getSlotKeysFromTimes } from '../utils/timeSlots';
+
+// Clave para persistir reservas del usuario en localStorage
+const RESERVAS_STORAGE_KEY = 'easyparker-user-reservas';
+const USER_INITIALIZED_KEY = 'easyparker-reservas-initialized';
 
 interface ReservaContextType {
   reservas: IReserva[];
@@ -16,8 +19,59 @@ interface ReservaContextType {
 
 const ReservaContext = createContext<ReservaContextType | undefined>(undefined);
 
+// Función para cargar reservas desde localStorage
+const loadReservasFromStorage = (): IReserva[] => {
+  try {
+    const stored = localStorage.getItem(RESERVAS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.warn('Error cargando reservas desde localStorage', error);
+  }
+  return [];
+};
+
+// Función para guardar reservas en localStorage
+const saveReservasToStorage = (reservas: IReserva[]) => {
+  try {
+    localStorage.setItem(RESERVAS_STORAGE_KEY, JSON.stringify(reservas));
+  } catch (error) {
+    console.warn('Error guardando reservas en localStorage', error);
+  }
+};
+
+// Verificar si es un usuario nuevo (nunca ha tenido reservas inicializadas)
+const isNewUser = (): boolean => {
+  return !localStorage.getItem(USER_INITIALIZED_KEY);
+};
+
+// Marcar al usuario como inicializado
+const markUserAsInitialized = () => {
+  localStorage.setItem(USER_INITIALIZED_KEY, 'true');
+};
+
 export function ReservaProvider({ children }: { children: ReactNode }) {
-  const [reservas, setReservas] = useState<IReserva[]>(reservasMock);
+  // Cargar reservas: usuarios nuevos empiezan sin reservas, usuarios existentes mantienen sus datos
+  const getInitialReservas = (): IReserva[] => {
+    const storedReservas = loadReservasFromStorage();
+    
+    // Si hay reservas guardadas, usarlas
+    if (storedReservas.length > 0) {
+      return storedReservas;
+    }
+    
+    // Si es un usuario nuevo, empezar sin reservas
+    if (isNewUser()) {
+      markUserAsInitialized();
+      return [];
+    }
+    
+    // Usuario existente sin reservas guardadas pero ya inicializado - mantener vacío
+    return [];
+  };
+
+  const [reservas, setReservas] = useState<IReserva[]>(getInitialReservas);
   const { getParkingById, reserveParkingSlots, releaseParkingSlots } = useParkingContext();
   const seededAvailabilityRef = useRef(false);
 
@@ -79,16 +133,23 @@ export function ReservaProvider({ children }: { children: ReactNode }) {
 
   useReservationReminders(reservas, parkingNameGetter);
 
+  // Persistir reservas en localStorage cuando cambien
+  useEffect(() => {
+    saveReservasToStorage(reservas);
+  }, [reservas]);
+
+  // Sincronizar disponibilidad de slots con las reservas activas actuales
   useEffect(() => {
     if (seededAvailabilityRef.current) return;
-    reservasMock
+    // Usar las reservas actuales del estado (no las mock)
+    reservas
       .filter((reserva) => reserva.estado === 'activa')
       .forEach((reserva) => {
         const slots = getSlotKeysFromTimes(reserva.horaInicio, reserva.horaFin);
         reserveParkingSlots(reserva.parqueoId, slots);
       });
     seededAvailabilityRef.current = true;
-  }, [reserveParkingSlots]);
+  }, [reserveParkingSlots, reservas]);
 
   return (
     <ReservaContext.Provider

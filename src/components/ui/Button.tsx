@@ -7,12 +7,12 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ variant = 'primary', size = 'md', className = '', ...props }: ButtonProps) {
-  const baseStyles = 'font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'font-medium rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95';
 
   const variants = {
-    primary: 'bg-primary text-white hover:bg-blue-700 active:scale-95',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 active:scale-95',
-    danger: 'bg-danger text-white hover:bg-red-600 active:scale-95',
+    primary: 'bg-primary text-white hover:bg-blue-700 hover:shadow-md',
+    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 hover:shadow-md',
+    danger: 'bg-danger text-white hover:bg-red-600 hover:shadow-md',
   };
 
   const sizes = {

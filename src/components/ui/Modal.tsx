@@ -23,20 +23,20 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         {title && (
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold">{title}</h2>
+          <div className="flex items-center justify-between p-5 sm:p-6 border-b sticky top-0 bg-white z-10">
+            <h2 className="text-lg sm:text-xl font-semibold">{title}</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-gray-500 hover:text-gray-700 transition-colors p-1"
             >
               <X size={24} />
             </button>
           </div>
         )}
-        <div className={title ? 'p-6' : 'p-6'}>
+        <div className="p-5 sm:p-6 pb-safe">
           {children}
         </div>
       </div>

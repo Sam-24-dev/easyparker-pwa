@@ -182,11 +182,11 @@ export function MapView({
   };
 
   return (
-    <div className="relative w-full rounded-3xl overflow-hidden border border-white/20 shadow-2xl" style={{ height }}>
+    <div className="relative w-full rounded-3xl overflow-hidden border border-white/20 shadow-2xl z-0" style={{ height }}>
       <MapContainer
         center={[userLat, userLng]}
         zoom={14}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', zIndex: 0 }}
         ref={handleMapInstance}
       >
         <TileLayer
@@ -211,7 +211,7 @@ export function MapView({
             <Popup>
               <div className="w-56 text-sm text-[#0B1F60] space-y-2">
                 <div className="rounded-lg overflow-hidden h-28">
-                  <img src={parking.foto} alt={parking.nombre} className="w-full h-full object-cover" />
+                  <img src={parking.foto} alt={parking.nombre} loading="lazy" className="w-full h-full object-cover bg-slate-200" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-base">{parking.nombre}</h4>

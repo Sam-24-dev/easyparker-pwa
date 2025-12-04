@@ -142,11 +142,13 @@ export function useReservationReminders(
       });
 
     return () => {
-      timersRef.current.forEach(({ before, end }) => {
+      // Copiar la referencia actual para el cleanup
+      const currentTimers = timersRef.current;
+      currentTimers.forEach(({ before, end }) => {
         if (before) window.clearTimeout(before);
         if (end) window.clearTimeout(end);
       });
-      timersRef.current.clear();
+      currentTimers.clear();
     };
   }, [reservas, getParkingName]);
 }

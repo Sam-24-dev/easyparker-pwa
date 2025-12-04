@@ -1,19 +1,51 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
+import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
-import { Search, Compass, Megaphone, Calendar, LogOut } from 'lucide-react';
+import { Search, Compass, Megaphone, Calendar, LogOut, Heart, Star, MapPin } from 'lucide-react';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { FavoriteButton } from '../components/ui/FavoriteButton';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Marcador simple para el mini-mapa
+const miniMapMarkerIcon = L.divIcon({
+  html: `<div style="width:12px;height:12px;background:#0B1F60;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>`,
+  className: 'custom-mini-marker',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
 
 export function Home() {
   const navigate = useNavigate();
-  const { parkings: allParkings } = useParkingContext(); // Datos SIN filtrar
+  const { parkings: allParkings, usuario } = useParkingContext();
+  const { favorites } = useFavorites();
   const { user, logout } = useAuth();
+  const [toastMessage, setToastMessage] = useState('');
 
-  const firstName = user?.nombre?.split(' ')[0] || 'Mirka';
-  const previousReservations = allParkings.slice(0, 3); // Siempre muestra los primeros 3
+  const firstName = user?.nombre?.split(' ')[0] || 'Usuario';
+  
+  // Obtener los 3 parqueos más cercanos para el mini-mapa
+  const nearbyParkings = allParkings
+    .filter(p => p.plazasLibres > 0)
+    .sort((a, b) => a.distancia - b.distancia)
+    .slice(0, 3);
+  
+  const availableParkingsCount = allParkings.filter(p => p.plazasLibres > 0).length;
+
+  // Obtener los últimos 2 favoritos
+  const favoriteParkings = allParkings.filter(p => favorites.includes(p.id)).slice(0, 2);
+
+  const handleAnunciosClick = () => {
+    setToastMessage('Próximamente: Ofertas y promociones');
+    setTimeout(() => setToastMessage(''), 2500);
+  };
+
   const suggestionCards = [
     { label: 'Explorar', icon: Compass, action: () => navigate('/buscar') },
-    { label: 'Anuncios', icon: Megaphone, action: () => navigate('/buscar?view=promos') },
+    { label: 'Anuncios', icon: Megaphone, action: handleAnunciosClick },
     { label: 'Reservas', icon: Calendar, action: () => navigate('/mis-reservas') },
   ];
 
@@ -53,35 +85,100 @@ export function Home() {
 
         <section className="rounded-3xl bg-white p-6 shadow-lg space-y-5">
           <article className="rounded-2xl bg-gradient-to-b from-[#0C1F63] to-[#1C2F74] text-white p-5 relative overflow-hidden">
-            <p className="text-sm text-white/70">Zona activa</p>
+            <p className="text-sm text-white/70">Parqueos cerca de</p>
             <h2 className="text-xl font-semibold">Urdesa Central</h2>
-            <div className="mt-4 h-28 rounded-2xl bg-[#09123F] border border-white/10 grid grid-cols-3 grid-rows-2 gap-2 p-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl bg-white/10 border border-white/15"
-                  aria-hidden
-                />
-              ))}
+            
+            {/* Mini-mapa con marcadores */}
+            <div className="mt-4 h-[150px] rounded-2xl overflow-hidden border border-white/20">
+              <MapContainer
+                center={[usuario.lat, usuario.lng]}
+                zoom={15}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={false}
+                dragging={false}
+                scrollWheelZoom={false}
+                doubleClickZoom={false}
+                touchZoom={false}
+                attributionControl={false}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {nearbyParkings.map((parking) => (
+                  <Marker
+                    key={parking.id}
+                    position={[parking.lat, parking.lng]}
+                    icon={miniMapMarkerIcon}
+                  />
+                ))}
+              </MapContainer>
             </div>
+            
+            <p className="mt-3 text-sm text-white/80">
+              {availableParkingsCount} parqueos disponibles
+            </p>
+            
             <button
               onClick={() => navigate('/buscar')}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white/90"
+              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-white/90 hover:text-white transition"
             >
-              Ver mapa completo
+              Ver mapa completo →
             </button>
           </article>
 
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-[#0B1F60]">Sugerencias</h3>
-              <button
-                className="text-sm text-[#5A63F2] font-semibold"
-                onClick={() => navigate('/buscar')}
-              >
-                Ver todo
-              </button>
+          {/* Sección de Favoritos */}
+          {favoriteParkings.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-[#0B1F60] flex items-center gap-2">
+                  <Heart size={18} className="text-rose-500" fill="currentColor" />
+                  Tus favoritos
+                </h3>
+                <button
+                  onClick={() => navigate('/favoritos')}
+                  className="text-sm font-semibold text-[#5A63F2]"
+                >
+                  Ver todos
+                </button>
+              </div>
+              <div className="space-y-2">
+                {favoriteParkings.map((parking) => (
+                  <div
+                    key={parking.id}
+                    className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-3 flex items-center gap-3 text-left hover:bg-slate-100 transition"
+                  >
+                    <button
+                      onClick={() => navigate(`/parqueo/${parking.id}`)}
+                      className="flex items-center gap-3 flex-1 min-w-0"
+                    >
+                      <img
+                        src={parking.foto}
+                        alt={parking.nombre}
+                        loading="lazy"
+                        className="w-14 h-14 rounded-xl object-cover bg-slate-200"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#0B1F60] truncate">{parking.nombre}</p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <MapPin size={12} />
+                            {parking.distancia}m
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Star size={12} fill="#0B1F60" className="text-[#0B1F60]" />
+                            {parking.calificacion.toFixed(1)}
+                          </span>
+                          <span className="font-semibold text-[#0B1F60]">${parking.precio}/h</span>
+                        </div>
+                      </div>
+                    </button>
+                    <FavoriteButton parkingId={parking.id} size="sm" />
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          <div>
+            <h3 className="text-lg font-semibold text-[#0B1F60] mb-3">Sugerencias</h3>
             <div className="grid grid-cols-3 gap-3">
               {suggestionCards.map(({ label, icon: Icon, action }) => (
                 <button
@@ -96,37 +193,14 @@ export function Home() {
             </div>
           </div>
         </section>
-
-        <section className="rounded-3xl bg-white p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-[#0B1F60]">Reservas anteriores</h3>
-            <button
-              className="text-sm text-[#5A63F2] font-semibold"
-              onClick={() => navigate('/mis-reservas?view=history')}
-            >
-              Ver historial
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {previousReservations.map((parking) => (
-              <button
-                key={parking.id}
-                onClick={() => navigate(`/parqueo/${parking.id}`)}
-                className="w-full rounded-2xl border border-slate-100 px-4 py-3 flex items-center justify-between text-left bg-[#F7F8FF]"
-              >
-                <div>
-                  <p className="font-semibold text-[#0B1F60]">{parking.nombre}</p>
-                  <p className="text-xs text-slate-500">
-                    {parking.tipo === 'calle' ? 'Zona pública' : 'Urdesa, Guayaquil'}
-                  </p>
-                </div>
-                <span className="text-[#5A63F2] text-sm font-semibold">Ver detalles</span>
-              </button>
-            ))}
-          </div>
-        </section>
       </div>
+
+      {/* Toast de mensaje */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0B1F60] text-white text-sm font-semibold px-4 py-3 rounded-full shadow-lg animate-slide-up z-50">
+          {toastMessage}
+        </div>
+      )}
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ParkingProvider } from './context/ParkingContext';
 import { ReservaProvider } from './context/ReservaContext';
 import { AuthProvider } from './context/AuthContext';
+import { FavoritesProvider } from './context/FavoritesContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
@@ -11,6 +12,7 @@ import { Buscar } from './pages/Buscar';
 import { Detalle } from './pages/Detalle';
 import { Reservar } from './pages/Reservar';
 import { MisReservas } from './pages/MisReservas';
+import { Favoritos } from './pages/Favoritos';
 
 function AppRoutes() {
   return (
@@ -65,6 +67,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/favoritos"
+          element={
+            <ProtectedRoute>
+              <Favoritos />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Redirigir cualquier ruta desconocida a splash */}
         <Route path="*" element={<Navigate to="/splash" replace />} />
@@ -78,9 +88,11 @@ function App() {
     <Router>
       <AuthProvider>
         <ParkingProvider>
-          <ReservaProvider>
-            <AppRoutes />
-          </ReservaProvider>
+          <FavoritesProvider>
+            <ReservaProvider>
+              <AppRoutes />
+            </ReservaProvider>
+          </FavoritesProvider>
         </ParkingProvider>
       </AuthProvider>
     </Router>

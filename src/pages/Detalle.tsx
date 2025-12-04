@@ -7,6 +7,7 @@ import { StarRating } from '../components/ui/StarRating';
 import { ReviewList } from '../components/reviews/ReviewList';
 import { useParkingContext } from '../context/ParkingContext';
 import { getReviewsByParkingId } from '../data/reviews';
+import { FavoriteButton } from '../components/ui/FavoriteButton';
 import {
   MapPin,
   Clock,
@@ -86,7 +87,8 @@ function FullscreenGallery({ images, initialIndex, onClose }: FullscreenGalleryP
         <img
           src={images[current]}
           alt={`Vista ${current + 1}`}
-          className="max-h-[70vh] max-w-full object-cover rounded-3xl shadow-2xl"
+          loading="lazy"
+          className="max-h-[70vh] max-w-full object-cover rounded-3xl shadow-2xl bg-slate-200"
         />
       </div>
 
@@ -100,7 +102,7 @@ function FullscreenGallery({ images, initialIndex, onClose }: FullscreenGalleryP
               current === idx ? 'border-white' : 'border-white/20'
             }`}
           >
-            <img src={image} alt="Miniatura" className="w-full h-16 object-cover" />
+            <img src={image} alt="Miniatura" loading="lazy" className="w-full h-16 object-cover bg-slate-200" />
           </button>
         ))}
       </div>
@@ -115,20 +117,14 @@ export function Detalle() {
 
   const parking = getParkingById(Number(id));
 
-  if (!parking) {
-    return (
-      <Layout>
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Parqueo no encontrado</p>
-          <Button onClick={() => navigate('/buscar')}>Volver a Búsqueda</Button>
-        </div>
-      </Layout>
-    );
-  }
-
-  const reviews = getReviewsByParkingId(parking.verificado);
+  // Todos los hooks deben estar antes de cualquier return condicional
+  const reviews = useMemo(() => {
+    if (!parking) return [];
+    return getReviewsByParkingId(parking.verificado);
+  }, [parking]);
 
   const galleryImages = useMemo(() => {
+    if (!parking) return [];
     if (parking.galeria && parking.galeria.length) return parking.galeria;
     return [parking.foto];
   }, [parking]);
@@ -136,13 +132,15 @@ export function Detalle() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const touchStart = useRef<number | null>(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [availability, setAvailability] = useState(parking.plazasLibres);
+  const [availability, setAvailability] = useState(parking?.plazasLibres ?? 0);
   const [lastUpdateAt, setLastUpdateAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    setAvailability(parking.plazasLibres);
-  }, [parking.id, parking.plazasLibres]);
+    if (parking) {
+      setAvailability(parking.plazasLibres);
+    }
+  }, [parking]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -213,38 +211,41 @@ export function Detalle() {
   };
 
   const featureItems = useMemo(
-    () => [
-      {
-        label: 'Seguridad 24/7',
-        icon: ShieldCheck,
-        active: parking.seguridad.some((seg) => seg.toLowerCase().includes('guardia')),
-        tooltip: 'Personal o guardia en sitio',
-      },
-      {
-        label: 'Cámaras activas',
-        icon: Camera,
-        active: parking.seguridad.some((seg) => seg.toLowerCase().includes('cámara')),
-        tooltip: 'Zona monitoreada con CCTV',
-      },
-      {
-        label: 'Acceso PMR',
-        icon: Accessibility,
-        active: parking.accesiblePMR,
-        tooltip: 'Espacios adaptados para movilidad reducida',
-      },
-      {
-        label: 'Zona techada',
-        icon: Star,
-        active: parking.seguridad.some((seg) => seg.toLowerCase().includes('techo')),
-        tooltip: 'Protección contra lluvia y sol',
-      },
-      {
-        label: 'Pago digital',
-        icon: Zap,
-        active: true,
-        tooltip: 'Acepta reservas y pagos desde la app',
-      },
-    ],
+    () => {
+      if (!parking) return [];
+      return [
+        {
+          label: 'Seguridad 24/7',
+          icon: ShieldCheck,
+          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('guardia')),
+          tooltip: 'Personal o guardia en sitio',
+        },
+        {
+          label: 'Cámaras activas',
+          icon: Camera,
+          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('cámara')),
+          tooltip: 'Zona monitoreada con CCTV',
+        },
+        {
+          label: 'Acceso PMR',
+          icon: Accessibility,
+          active: parking.accesiblePMR,
+          tooltip: 'Espacios adaptados para movilidad reducida',
+        },
+        {
+          label: 'Zona techada',
+          icon: Star,
+          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('techo')),
+          tooltip: 'Protección contra lluvia y sol',
+        },
+        {
+          label: 'Pago digital',
+          icon: Zap,
+          active: true,
+          tooltip: 'Acepta reservas y pagos desde la app',
+        },
+      ];
+    },
     [parking]
   );
 
@@ -258,6 +259,18 @@ export function Detalle() {
       }),
     []
   );
+
+  // Early return DESPUÉS de todos los hooks
+  if (!parking) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <p className="text-gray-500 mb-4">Parqueo no encontrado</p>
+          <Button onClick={() => navigate('/buscar')}>Volver a Búsqueda</Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -282,7 +295,7 @@ export function Detalle() {
                   }}
                   className="w-full h-full flex-shrink-0"
                 >
-                  <img src={image} alt={`Vista ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={image} alt={`Vista ${index + 1}`} loading="lazy" className="w-full h-full object-cover bg-slate-200" />
                 </button>
               ))}
             </div>
@@ -324,7 +337,10 @@ export function Detalle() {
               <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Buscar un estacionamiento</p>
               <h1 className="text-3xl font-semibold text-slate-900 mt-1">{parking.nombre}</h1>
             </div>
-            {parking.verificado && <Badge variant="success">VERIFICADO</Badge>}
+            <div className="flex items-center gap-2">
+              <FavoriteButton parkingId={parking.id} size="md" />
+              {parking.verificado && <Badge variant="success">VERIFICADO</Badge>}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
