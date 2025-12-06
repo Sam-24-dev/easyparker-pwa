@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
@@ -16,7 +16,6 @@ import {
   Accessibility,
   Star,
   Zap,
-  X,
   ExternalLink,
   CheckCircle
 } from 'lucide-react';
@@ -24,92 +23,6 @@ import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 
 import 'leaflet/dist/leaflet.css';
-
-interface FullscreenGalleryProps {
-  images: string[];
-  initialIndex: number;
-  onClose: () => void;
-}
-
-function FullscreenGallery({ images, initialIndex, onClose }: FullscreenGalleryProps) {
-  const [current, setCurrent] = useState(initialIndex);
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
-
-  const goPrev = () => {
-    setCurrent((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  const goNext = () => {
-    setCurrent((prev) => (prev + 1) % images.length);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[9999] bg-black/95 text-white flex flex-col">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">Galería</p>
-          <p className="text-lg font-semibold">{current + 1} de {images.length}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={goPrev}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition"
-            aria-label="Foto anterior"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition"
-            aria-label="Foto siguiente"
-          >
-            ›
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center"
-            aria-label="Cerrar galería"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-6">
-        <img
-          src={images[current]}
-          alt={`Vista ${current + 1}`}
-          loading="lazy"
-          className="max-h-[70vh] max-w-full object-cover rounded-3xl shadow-2xl bg-slate-200"
-        />
-      </div>
-
-      <div className="px-6 pb-8 grid grid-cols-4 sm:grid-cols-6 gap-3">
-        {images.map((image, idx) => (
-          <button
-            key={image + idx}
-            type="button"
-            onClick={() => setCurrent(idx)}
-            className={`rounded-xl overflow-hidden border ${
-              current === idx ? 'border-white' : 'border-white/20'
-            }`}
-          >
-            <img src={image} alt="Miniatura" loading="lazy" className="w-full h-16 object-cover bg-slate-200" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function Detalle() {
   const { id } = useParams<{ id: string }>();
@@ -124,15 +37,6 @@ export function Detalle() {
     return getReviewsByParkingId(parking.verificado);
   }, [parking]);
 
-  const galleryImages = useMemo(() => {
-    if (!parking) return [];
-    if (parking.galeria && parking.galeria.length) return parking.galeria;
-    return [parking.foto];
-  }, [parking]);
-
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const touchStart = useRef<number | null>(null);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [availability, setAvailability] = useState(parking?.plazasLibres ?? 0);
   const [lastUpdateAt, setLastUpdateAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
@@ -193,23 +97,6 @@ export function Detalle() {
       dot: 'bg-amber-500',
     };
   }, [availability]);
-
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchStart.current = event.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStart.current === null) return;
-    const delta = event.changedTouches[0].clientX - touchStart.current;
-    if (Math.abs(delta) > 40) {
-      if (delta < 0) {
-        setCurrentSlide((prev) => (prev + 1) % galleryImages.length);
-      } else {
-        setCurrentSlide((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
-      }
-    }
-    touchStart.current = null;
-  };
 
   const featureItems = useMemo(
     () => {
@@ -277,58 +164,19 @@ export function Detalle() {
     <Layout>
       <div className="space-y-8 pb-24">
         <section className="space-y-4">
-          <div
-            className="relative rounded-3xl overflow-hidden bg-slate-100 h-64 select-none"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <div
-              className="flex h-full transition-transform duration-300"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-            >
-              {galleryImages.map((image, index) => (
-                <button
-                  key={image + index}
-                  type="button"
-                  onClick={() => {
-                    setCurrentSlide(index);
-                    setIsGalleryOpen(true);
-                  }}
-                  className="w-full h-full flex-shrink-0"
-                >
-                  <img src={image} alt={`Vista ${index + 1}`} loading="lazy" className="w-full h-full object-cover bg-slate-200" />
-                </button>
-              ))}
-            </div>
-            <div className="hidden sm:flex absolute inset-y-0 left-0 right-0 items-center justify-between px-4">
-              <button
-                type="button"
-                onClick={() => setCurrentSlide((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
-                className="w-10 h-10 rounded-full bg-white/70 backdrop-blur text-slate-700"
-                aria-label="Anterior"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentSlide((prev) => (prev + 1) % galleryImages.length)}
-                className="w-10 h-10 rounded-full bg-white/70 backdrop-blur text-slate-700"
-                aria-label="Siguiente"
-              >
-                ›
-              </button>
-            </div>
-            <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2">
-              {galleryImages.map((_, idx) => (
-                <span
-                  key={idx}
-                  className={`w-2 h-2 rounded-full ${idx === currentSlide ? 'bg-white' : 'bg-white/40'}`}
-                />
-              ))}
-            </div>
-            <div className="absolute top-4 right-4 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
-              {currentSlide + 1}/{galleryImages.length}
-            </div>
+          {/* Imagen única sin galería ni navegación */}
+          <div className="relative rounded-3xl overflow-hidden bg-slate-100 h-64">
+            <img 
+              src={parking.foto} 
+              alt={parking.nombre} 
+              loading="lazy" 
+              className="w-full h-full object-cover bg-slate-200" 
+            />
+            {parking.verificado && (
+              <div className="absolute top-4 right-4 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-medium">
+                ✓ Verificado
+              </div>
+            )}
           </div>
         </section>
 
@@ -465,14 +313,6 @@ export function Detalle() {
           Reservar ahora
         </Button>
       </div>
-
-      {isGalleryOpen && (
-        <FullscreenGallery
-          images={galleryImages}
-          initialIndex={currentSlide}
-          onClose={() => setIsGalleryOpen(false)}
-        />
-      )}
     </Layout>
   );
 }
