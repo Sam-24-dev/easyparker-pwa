@@ -125,25 +125,25 @@ export function Detalle() {
         {
           label: 'Seguridad 24/7',
           icon: ShieldCheck,
-          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('guardia')),
+          active: true,
           tooltip: 'Personal o guardia en sitio',
         },
         {
           label: 'Cámaras activas',
           icon: Camera,
-          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('cámara')),
+          active: true,
           tooltip: 'Zona monitoreada con CCTV',
         },
         {
           label: 'Acceso PMR',
           icon: Accessibility,
-          active: parking.accesiblePMR,
+          active: true,
           tooltip: 'Espacios adaptados para movilidad reducida',
         },
         {
           label: 'Zona techada',
           icon: Warehouse,
-          active: parking.tipo === 'garage_privado' || parking.tipo === 'comercial' || parking.seguridad.some((seg) => seg.toLowerCase().includes('techo')),
+          active: true,
           tooltip: 'Protección contra lluvia y sol',
         },
         {

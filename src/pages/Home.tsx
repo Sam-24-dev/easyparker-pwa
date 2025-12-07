@@ -55,7 +55,7 @@ export function Home() {
   };
 
   return (
-    <Layout showNav backgroundClassName="bg-gradient-to-b from-[#081750] to-[#0B1F60]">
+    <Layout showNav backgroundClassName="bg-[#0A1F63]">
       <div className="space-y-5">
         <section className="rounded-3xl bg-gradient-to-br from-[#0A1F63] to-[#132A74] text-white p-6 shadow-xl">
           <div className="flex items-start justify-between gap-4">
