@@ -1,30 +1,44 @@
 import { useParkingContext } from '../context/ParkingContext';
 import { IParking } from '../types/index';
 import { useDistance } from './useDistance';
+import { matchesParkingSearch } from '../data/searchZones';
 
-export function useParkings() {
+export function useParkings(searchTerm: string = '') {
   const { parkings, filtros, usuario } = useParkingContext();
   const { calculateDistance } = useDistance();
 
-  const getFilteredParkings = (): IParking[] => {
-    let filtered = parkings;
+  // Calcular distancia REAL para cada parqueo basada en ubicación del usuario
+  const parkingsWithDistance = parkings.map(p => ({
+    ...p,
+    distancia: calculateDistance(usuario.lat, usuario.lng, p.lat, p.lng)
+  }));
 
+  const getFilteredParkings = (): IParking[] => {
+    let filtered = parkingsWithDistance;
+
+    // 1. Búsqueda por texto (Nombre o Zona)
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(p => matchesParkingSearch(p, searchTerm));
+    }
+
+    // 2. Tipo de Vehículo
     filtered = filtered.filter(p => p.vehiculosPermitidos.includes(filtros.tipoVehiculo));
 
+    // 3. Precio Máximo
+    filtered = filtered.filter(p => p.precio <= filtros.precioMax);
+
+    // 4. Distancia
+    filtered = filtered.filter(p => p.distancia <= filtros.distancia);
+
+    // 5. Solo Verificados
     if (filtros.soloVerificados) {
       filtered = filtered.filter(p => p.verificado);
     }
 
+    // 6. Accesible PMR
     if (filtros.accesiblePMR) {
       filtered = filtered.filter(p => p.accesiblePMR);
     }
-
-    filtered = filtered.filter(p => p.precio <= filtros.precioMax);
-
-    filtered = filtered.filter(p => {
-      const dist = calculateDistance(usuario.lat, usuario.lng, p.lat, p.lng);
-      return dist <= filtros.distancia;
-    });
 
     return filtered;
   };
@@ -40,6 +54,7 @@ export function useParkings() {
       scoreA += a.plazasLibres;
       scoreB += b.plazasLibres;
 
+      // Usar la distancia real calculada
       scoreA -= a.distancia / 10;
       scoreB -= b.distancia / 10;
 
@@ -52,7 +67,7 @@ export function useParkings() {
 
   return {
     parkings: sorted,
-    totalParkings: parkings,
-    totalAvailable: parkings.reduce((sum, p) => sum + p.plazasLibres, 0),
+    totalParkings: parkingsWithDistance,
+    totalAvailable: parkingsWithDistance.reduce((sum, p) => sum + p.plazasLibres, 0),
   };
 }

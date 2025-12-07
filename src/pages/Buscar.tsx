@@ -1,17 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkings } from '../hooks/useParkings';
 import { useParkingContext } from '../context/ParkingContext';
-import { MapPin, SlidersHorizontal, Star, Search as SearchIcon, Loader2, MapPinOff, Bell, Clock, X, Navigation } from 'lucide-react';
+import { MapPin, SlidersHorizontal, Search as SearchIcon, Loader2, MapPinOff, Bell, Clock, X, Navigation } from 'lucide-react';
 import { MapView } from '../components/parking/MapView';
+import { ParkingCard } from '../components/parking/ParkingCard';
 import { Modal } from '../components/ui/Modal';
 import { FilterBar } from '../components/parking/FilterBar';
 import { Button } from '../components/ui/Button';
-import { FavoriteButton } from '../components/ui/FavoriteButton';
 import { useSearchHistory } from '../hooks/useSearchHistory';
 import { analytics } from '../utils/analytics';
-import { SEARCH_ZONES, getZoneNameFromSearch, matchesParkingSearch } from '../data/searchZones';
+import { SEARCH_ZONES, getZoneNameFromSearch } from '../data/searchZones';
+import type { TipoVehiculo } from '../types';
 
 type SortMode = 'distance' | 'price' | 'rating';
 
@@ -19,13 +20,48 @@ const NOTIFICATION_STORAGE_KEY = 'easyparker-notify-availability';
 
 export function Buscar() {
   const navigate = useNavigate();
-  const { parkings: recommendedParkings, totalParkings } = useParkings();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { usuario, resetFiltros, filtros, setFiltros } = useParkingContext();
   const { history, addSearch, clearHistory } = useSearchHistory();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  // Inicializar searchTerm desde URL si existe
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [sortMode, setSortMode] = useState<SortMode>('distance');
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+
+  // Sincronizar URL cuando cambian searchTerm o filtros
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (searchTerm) params.q = searchTerm;
+    if (filtros.tipoVehiculo) params.type = filtros.tipoVehiculo;
+    if (filtros.precioMax < 10) params.price = filtros.precioMax.toString();
+    if (filtros.soloVerificados) params.verified = 'true';
+    
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, filtros, setSearchParams]);
+
+  // Restaurar filtros desde URL al montar
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const type = searchParams.get('type');
+    const price = searchParams.get('price');
+    const verified = searchParams.get('verified');
+
+    if (q || type || price || verified) {
+      if (q) setSearchTerm(q);
+      setFiltros({
+        ...filtros,
+        tipoVehiculo: (type as TipoVehiculo) || filtros.tipoVehiculo,
+        precioMax: price ? Number(price) : filtros.precioMax,
+        soloVerificados: verified === 'true',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo al montar
+
+  // Pasamos searchTerm al hook para que filtre combinando con los demás filtros
+  const { parkings: recommendedParkings } = useParkings(searchTerm);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,11 +71,23 @@ export function Buscar() {
   const [toastMessage, setToastMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdatedIds, setLastUpdatedIds] = useState<number[]>([]);
+  const [mapFlyTo, setMapFlyTo] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedParkingId, setSelectedParkingId] = useState<number | null>(null);
   
   // GPS/Location states
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
+  
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleLocateParking = (id: number, lat: number, lng: number) => {
+    setMapFlyTo({ lat, lng });
+    setSelectedParkingId(id);
+    if (mapContainerRef.current) {
+      mapContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 900);
@@ -71,16 +119,8 @@ export function Buscar() {
   }, [toastMessage]);
 
   const visibleParkings = useMemo(() => {
-    const sourceParkings = searchTerm.trim() ? totalParkings : recommendedParkings;
-
-    const filtered = sourceParkings
-      .filter((parking) => parking.plazasLibres > 0)
-      .filter((parking) => {
-        // Búsqueda por nombre o zona - funciona con los 35 parqueos
-        if (!searchTerm.trim()) return true;
-        return matchesParkingSearch(parking, searchTerm);
-      });
-    // Nota: Removemos el filtro de zonas validadas de aquí para mostrar todos los 35
+    // Ahora recommendedParkings ya viene filtrado por searchTerm y filtros del contexto
+    const filtered = recommendedParkings.filter((parking) => parking.plazasLibres > 0);
 
     const sorted = [...filtered].sort((a, b) => {
       if (sortMode === 'price') return a.precio - b.precio;
@@ -89,7 +129,7 @@ export function Buscar() {
     });
 
     return sorted;
-  }, [recommendedParkings, totalParkings, searchTerm, sortMode]);
+  }, [recommendedParkings, sortMode]);
 
   // Obtener nombre de zona dinámico
   const currentZoneName = useMemo(() => {
@@ -315,7 +355,7 @@ export function Buscar() {
           </div>
         ) : (
           <>
-            <div className="space-y-4">
+            <div className="space-y-4" ref={mapContainerRef}>
               <MapView
                 parkings={visibleParkings}
                 userLat={usuario.lat}
@@ -325,6 +365,8 @@ export function Buscar() {
                 suggestionPoint={suggestionCoords}
                 onMapLongPress={handleLongPress}
                 onLiveUpdate={handleLiveUpdate}
+                flyToCoords={mapFlyTo}
+                selectedId={selectedParkingId}
                 height={400}
               />
               <div className="flex items-center justify-between text-xs text-[#0B1F60]">
@@ -345,77 +387,36 @@ export function Buscar() {
                   {[
                     { label: 'Más cerca', value: 'distance' },
                     { label: 'Más barato', value: 'price' },
-                    { label: 'Mejor calificado', value: 'rating' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      className={`px-4 py-2 text-xs font-semibold rounded-full transition ${
-                        sortMode === option.value
-                          ? 'bg-white text-[#0B1F60] shadow'
-                          : 'text-slate-500'
-                      }`}
-                      onClick={() => setSortMode(option.value as SortMode)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                      { label: 'Mejor calificado', value: 'rating' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        className={`px-4 py-2 text-xs font-semibold rounded-full transition ${
+                          sortMode === option.value
+                            ? 'bg-white text-[#0B1F60] shadow'
+                            : 'text-slate-500'
+                        }`}
+                        onClick={() => setSortMode(option.value as SortMode)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="grid gap-4">
                 {visibleParkings.map((parking) => (
                   <div
                     key={parking.id}
                     onMouseEnter={() => setHoveredId(parking.id)}
                     onMouseLeave={() => setHoveredId(null)}
-                    className={`rounded-2xl border px-4 py-4 flex items-center justify-between gap-3 transition ${
-                      hoveredId === parking.id
-                        ? 'border-[#0B1F60] bg-[#EEF0FF]'
-                        : 'border-slate-100 bg-[#F6F7FF]'
-                    }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-inner">
-                        <MapPin className="text-[#0B1F60]" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#0B1F60]">{parking.nombre}</p>
-                        <p className="text-xs text-slate-500 capitalize">{parking.tipo.replace('_', ' ')}</p>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
-                          <span>{parking.distancia} m</span>
-                          <span>•</span>
-                          <span>${parking.precio}/h</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <div className="flex items-center gap-2">
-                        <FavoriteButton parkingId={parking.id} size="sm" />
-                        <div className="flex items-center justify-end gap-1 text-[#0B1F60] font-semibold">
-                          <Star size={14} fill="#0B1F60" className="text-[#0B1F60]" />
-                          {parking.calificacion.toFixed(1)}
-                        </div>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-white text-[11px] font-semibold ${
-                          parking.plazasLibres > 10
-                            ? 'bg-emerald-500'
-                            : parking.plazasLibres >= 3
-                              ? 'bg-amber-500'
-                              : 'bg-rose-500'
-                        }`}
-                      >
-                        {parking.plazasLibres} plazas
-                      </span>
-                      <Button
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        onClick={() => navigate(`/reservar/${parking.id}`)}
-                        aria-label={`Reservar en ${parking.nombre}`}
-                      >
-                        Reservar
-                      </Button>
-                    </div>
+                    <ParkingCard
+                      parking={parking}
+                      onClick={() => navigate(`/parqueo/${parking.id}`)}
+                      onLocateClick={() => handleLocateParking(parking.id, parking.lat, parking.lng)}
+                      onReserveClick={() => navigate(`/reservar/${parking.id}`)}
+                    />
                   </div>
                 ))}
               </div>

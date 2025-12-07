@@ -17,6 +17,8 @@ interface MapViewProps {
   suggestionPoint?: { lat: number; lng: number } | null;
   onMapLongPress?: (coords: { lat: number; lng: number }) => void;
   onLiveUpdate?: (changedIds: number[]) => void;
+  flyToCoords?: { lat: number; lng: number } | null;
+  selectedId?: number | null;
   height?: number;
 }
 
@@ -99,10 +101,14 @@ export function MapView({
   suggestionPoint,
   onMapLongPress,
   onLiveUpdate,
+  flyToCoords,
+  selectedId,
   height = 400,
 }: MapViewProps) {
   const mapRef = React.useRef<LeafletMap | null>(null);
+  const markerRefs = React.useRef<Record<number, L.Marker | null>>({});
   const [mapReady, setMapReady] = React.useState(false);
+
   const handleMapInstance = React.useCallback((instance: LeafletMap | null) => {
     if (instance) {
       mapRef.current = instance;
@@ -130,6 +136,17 @@ export function MapView({
     ]);
     mapRef.current.fitBounds(bounds, { padding: [50, 50] });
   }, [parkings, userLat, userLng, mapReady]);
+
+  React.useEffect(() => {
+    if (!mapReady || !mapRef.current || !flyToCoords) return;
+    mapRef.current.flyTo([flyToCoords.lat, flyToCoords.lng], 16, { duration: 0.8 });
+  }, [flyToCoords, mapReady]);
+
+  React.useEffect(() => {
+    if (selectedId && markerRefs.current[selectedId]) {
+      markerRefs.current[selectedId]?.openPopup();
+    }
+  }, [selectedId]);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -248,6 +265,9 @@ export function MapView({
           <Marker
             key={parking.id}
             position={[parking.lat, parking.lng]}
+            ref={(ref) => {
+              if (ref) markerRefs.current[parking.id] = ref;
+            }}
             icon={createMarkerIcon(getMarkerColor(parking.plazasLibres), {
               highlighted: parking.id === highlightedId,
               pulsing: recentUpdated.includes(parking.id) || updatedIds?.includes(parking.id),

@@ -6,7 +6,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-export function Button({ variant = 'primary', size = 'md', className = '', ...props }: ButtonProps) {
+export function Button({ variant = 'primary', size = 'md', className = '', type = 'button', ...props }: ButtonProps) {
   const baseStyles = 'font-medium rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95';
 
   const variants = {
@@ -24,6 +24,7 @@ export function Button({ variant = 'primary', size = 'md', className = '', ...pr
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      type={type}
       {...props}
     />
   );

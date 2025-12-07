@@ -7,7 +7,7 @@ import { IReserva, TipoVehiculo } from '../types';
 import { Button } from '../components/ui/Button';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toPng } from 'html-to-image';
-import { Calendar, CreditCard, Download, Share2, Wallet } from 'lucide-react';
+import { Calendar, CreditCard, Download, Share2, Wallet, ArrowLeft } from 'lucide-react';
 import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
 
 const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
@@ -280,13 +280,13 @@ export function Reservar() {
 
   const volver = () => {
     if (step === 1) {
-      navigate('/buscar');
+      navigate(-1);
       return;
     }
     // Si estamos en paso 4 (QR generado), la reserva ya está hecha
     // No permitir volver al paso de pago - ir a buscar
     if (step === 4) {
-      navigate('/buscar');
+      navigate(-1);
       return;
     }
     setStep(prev => (prev - 1) as 1 | 2 | 3 | 4);

@@ -62,106 +62,111 @@ export interface SearchZone {
 }
 
 export const SEARCH_ZONES: SearchZone[] = [
-  // ZONAS GEOGRÁFICAS (con zonaIds estrictos)
+  // =====================================================
+  // ZONAS GEOGRÁFICAS (filtran por zonaId de parkings.ts)
+  // =====================================================
   {
     id: 'urdesa',
     name: 'Urdesa',
-    // Solo parqueos con zonaId: 'urdesa'
-    keywords: ['urdesa', 'panchita', 'iguanas', 'victor emilio', 'estrada', 'miraflores', 'don bosco', 'alamos', 'paraiso', 'santa cecilia', 'circunvalacion'],
-    parkingIds: [1, 4, 5, 7, 8, 12, 19, 24, 26, 29, 31],
+    keywords: ['urdesa', 'panchita', 'iguanas', 'victor emilio', 'estrada', 'miraflores', 'circunvalacion', 'don bosco', 'paraiso', 'express'],
+    parkingIds: [1, 4, 5, 7, 8, 12, 19, 26, 31], // zonaId: 'urdesa'
     zonaIds: ['urdesa'],
     icon: '🏘️'
   },
   {
     id: 'kennedy',
     name: 'Kennedy',
-    // Solo parqueos con zonaId: 'kennedy' (hospitales, clínicas)
-    keywords: ['kennedy', 'cedros', 'hospital', 'clinica', 'supermaxi kennedy', 'catolica', 'universidad'],
-    parkingIds: [3, 6, 13, 14, 25],
+    keywords: ['kennedy', 'cedros', 'hospital', 'clinica', 'san marino', 'policentro', 'plaza quil', 'catolica', 'universidad', 'supermaxi'],
+    parkingIds: [3, 6, 10, 11, 13, 14, 17, 25, 32], // zonaId: 'kennedy'
     zonaIds: ['kennedy'],
     icon: '🏥'
   },
   {
     id: 'centro',
     name: 'Centro / Malecón',
-    // Solo parqueos con zonaId: 'centro'
-    keywords: ['centro', 'malecon', 'boyaca', 'chile', 'quisquis', 'historico', 'mascote', 'san marino'],
-    parkingIds: [10, 15, 22, 28, 32, 35],
+    keywords: ['centro', 'malecon', 'boyaca', 'chile', 'quisquis', 'historico', 'mascote'],
+    parkingIds: [15, 22, 28, 35], // zonaId: 'centro'
     zonaIds: ['centro'],
     icon: '🏛️'
   },
   {
     id: 'norte',
     name: 'Norte (Alborada/Samanes)',
-    // Solo parqueos con zonaId: 'alborada-samanes'
-    keywords: ['alborada', 'samanes', 'garzota', 'norte'],
-    parkingIds: [11, 21, 33],
+    keywords: ['alborada', 'samanes', 'garzota', 'norte', 'alamos'],
+    parkingIds: [21, 24, 33], // zonaId: 'alborada-samanes'
     zonaIds: ['alborada-samanes'],
     icon: '🏙️'
   },
   {
     id: 'aeropuerto',
     name: 'Aeropuerto / Terminal',
-    // Solo parqueos con zonaId: 'aeropuerto-terminal'
     keywords: ['aeropuerto', 'terminal', 'terrestre', 'jjo'],
-    parkingIds: [18, 20],
+    parkingIds: [18, 20], // zonaId: 'aeropuerto-terminal'
     zonaIds: ['aeropuerto-terminal'],
     icon: '✈️'
   },
   {
     id: 'ceibos',
     name: 'Ceibos',
-    // Solo parqueos con zonaId: 'ceibos' (NO incluye Samborondón)
-    keywords: ['ceibos'],
-    parkingIds: [16],
+    keywords: ['ceibos', 'santa cecilia'],
+    parkingIds: [16, 29], // zonaId: 'ceibos'
     zonaIds: ['ceibos'],
     icon: '🌳'
   },
   {
     id: 'samborondon',
     name: 'Vía Samborondón',
-    // Solo parqueos con zonaId: 'samborondon' (cruzando el puente)
     keywords: ['samborondon', 'entre rios', 'plaza lagos', 'riocentro'],
-    parkingIds: [23, 34],
+    parkingIds: [23, 34], // zonaId: 'samborondon'
     zonaIds: ['samborondon'],
     icon: '🌉'
   },
   {
     id: 'sur',
     name: 'Sur de Guayaquil',
-    // Solo parqueos con zonaId: 'sur'
-    keywords: ['sur', 'plaza quil'],
-    parkingIds: [17, 27],
+    keywords: ['sur'],
+    parkingIds: [27], // zonaId: 'sur'
     zonaIds: ['sur'],
     icon: '🏢'
   },
   {
     id: 'via-costa',
     name: 'Vía a la Costa',
-    // Solo parqueos con zonaId: 'via-costa'
     keywords: ['via costa', 'estadio', 'monumental', 'barcelona'],
-    parkingIds: [30],
+    parkingIds: [30], // zonaId: 'via-costa'
     zonaIds: ['via-costa'],
     icon: '⚽'
   },
 
-  // FILTROS POR TIPO (sin zonaIds, usan parkingIds directamente)
+  // =====================================================
+  // FILTROS POR TIPO (basados en tipo de parkings.ts)
+  // =====================================================
   {
     id: 'malls',
-    name: 'Centros Comerciales',
-    // Todos los centros comerciales (por tipo, no por zona)
-    keywords: ['mall', 'centro comercial', 'city mall', 'mall del sol', 'mall del sur', 'policentro', 'riocentro'],
-    parkingIds: [2, 9, 11, 23, 27, 32],
-    // NO tiene zonaIds - filtra solo por parkingIds
+    name: 'Malls / Centros Comerciales',
+    // Todos los parqueos con tipo: 'comercial' que son centros comerciales
+    keywords: [
+      'malls',
+      'mall',
+      'centros comerciales',
+      'comerciales',
+      'policentro',
+      'riocentro',
+      'mall del sol',
+      'city mall',
+      'mall del sur',
+      'san marino',
+      'plaza lagos'
+    ],
+    parkingIds: [2, 9, 11, 23, 27, 32, 34], // Malls y CC en cualquier zona
     icon: '🛍️'
   },
   {
     id: 'garajes',
     name: 'Garajes Privados',
-    // Todos los garajes privados (por tipo, no por zona)
+    // Todos los parqueos con tipo: 'garage_privado'
     keywords: ['garaje', 'privado', 'garage'],
-    parkingIds: [1, 5, 8, 10, 12, 16, 19, 21, 24, 26, 29, 31, 33],
-    // NO tiene zonaIds - filtra solo por parkingIds y keywords
+    parkingIds: [1, 5, 8, 12, 16, 19, 21, 24, 26, 29, 31, 33], // tipo: garage_privado
     icon: '🚗'
   }
 ];

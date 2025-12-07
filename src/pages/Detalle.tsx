@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
@@ -14,10 +14,13 @@ import {
   ShieldCheck,
   Camera,
   Accessibility,
-  Star,
+  Car,
+  Bike,
+  Warehouse,
   Zap,
   ExternalLink,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
@@ -101,7 +104,24 @@ export function Detalle() {
   const featureItems = useMemo(
     () => {
       if (!parking) return [];
+
+      const hasAuto = parking.vehiculosPermitidos.includes('Auto');
+      const hasMoto = parking.vehiculosPermitidos.includes('Moto');
+      const vehicleInfo = hasAuto && hasMoto
+        ? { label: 'Autos y Motos', icon: Car }
+        : hasAuto
+          ? { label: 'Solo Autos', icon: Car }
+          : hasMoto
+            ? { label: 'Solo Motos', icon: Bike }
+            : { label: 'Restricción de vehículos', icon: Car };
+
       return [
+        {
+          label: vehicleInfo.label,
+          icon: vehicleInfo.icon,
+          active: true,
+          tooltip: 'Tipos de vehículo permitidos',
+        },
         {
           label: 'Seguridad 24/7',
           icon: ShieldCheck,
@@ -122,8 +142,8 @@ export function Detalle() {
         },
         {
           label: 'Zona techada',
-          icon: Star,
-          active: parking.seguridad.some((seg) => seg.toLowerCase().includes('techo')),
+          icon: Warehouse,
+          active: parking.tipo === 'garage_privado' || parking.tipo === 'comercial' || parking.seguridad.some((seg) => seg.toLowerCase().includes('techo')),
           tooltip: 'Protección contra lluvia y sol',
         },
         {
@@ -163,6 +183,14 @@ export function Detalle() {
   return (
     <Layout>
       <div className="space-y-8 pb-24">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="inline-flex items-center gap-2 text-slate-500 hover:text-[#0B1F60] transition-colors font-medium"
+        >
+          <ArrowLeft size={20} />
+          Volver
+        </button>
+
         <section className="space-y-4">
           {/* Imagen única sin galería ni navegación */}
           <div className="relative rounded-3xl overflow-hidden bg-slate-100 h-64">
@@ -263,7 +291,7 @@ export function Detalle() {
           <Button
             variant="secondary"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${parking.lat},${parking.lng}`, '_blank')}
+            onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${parking.lat},${parking.lng}`, '_blank')}
           >
             Ver en Google Maps
             <ExternalLink size={16} />

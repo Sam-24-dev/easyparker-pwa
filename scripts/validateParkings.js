@@ -1,6 +1,9 @@
 /**
  * Script de validación de parqueos
  * Ejecutar con: node scripts/validateParkings.js
+ * 
+ * AUDITORÍA COMPLETA - Diciembre 2025
+ * Valida consistencia entre parkings.ts, searchZones.ts y validatedZones.ts
  */
 
 // Datos de parqueos (copiados para validación independiente)
@@ -30,7 +33,7 @@ const parkings = [
   { id: 22, nombre: "Calle Quisquís Centro", lat: -2.1889, lng: -79.8867, tipo: "calle", zonaId: "centro", precio: 0 },
   { id: 23, nombre: "Riocentro Entre Ríos", lat: -2.1430, lng: -79.8660, tipo: "comercial", zonaId: "samborondon", precio: 1.75 },
   { id: 24, nombre: "Garaje Los Álamos VIP", lat: -2.1300, lng: -79.9000, tipo: "garage_privado", zonaId: "alborada-samanes", precio: 3.00 },
-  { id: 25, nombre: "Parqueo Universidad Católica", lat: -2.1814, lng: -79.9036, tipo: "comercial", zonaId: "urdesa", precio: 1.00 },
+  { id: 25, nombre: "Parqueo Universidad Católica", lat: -2.1814, lng: -79.9036, tipo: "comercial", zonaId: "kennedy", precio: 1.00 },
   { id: 26, nombre: "Garaje El Paraíso", lat: -2.1823, lng: -79.9056, tipo: "garage_privado", zonaId: "urdesa", precio: 1.80 },
   { id: 27, nombre: "Mall del Sur Parking", lat: -2.2270, lng: -79.8990, tipo: "comercial", zonaId: "sur", precio: 1.50 },
   { id: 28, nombre: "Calle Boyacá Centro", lat: -2.1934, lng: -79.8812, tipo: "calle", zonaId: "centro", precio: 0 },
@@ -42,6 +45,37 @@ const parkings = [
   { id: 34, nombre: "Parqueo Plaza Lagos", lat: -2.1300, lng: -79.8600, tipo: "comercial", zonaId: "samborondon", precio: 3.50 },
   { id: 35, nombre: "Calle Chile Centro Histórico", lat: -2.1978, lng: -79.8876, tipo: "calle", zonaId: "centro", precio: 0 }
 ];
+
+// IDs esperados por zona (calculados desde parkings)
+const EXPECTED_IDS_BY_ZONE = {
+  'urdesa': [1, 4, 5, 7, 8, 12, 19, 26, 31],
+  'kennedy': [3, 6, 10, 11, 13, 14, 17, 25, 32],
+  'centro': [15, 22, 28, 35],
+  'alborada-samanes': [21, 24, 33],
+  'ceibos': [16, 29],
+  'samborondon': [23, 34],
+  'aeropuerto-terminal': [18, 20],
+  'sur': [27],
+  'via-costa': [30],
+  'mall': [2, 9]
+};
+
+// IDs de garajes privados (tipo: garage_privado)
+const EXPECTED_GARAGE_IDS = [1, 5, 8, 10, 12, 16, 19, 21, 24, 26, 29, 31, 33];
+
+// Counts esperados por zona
+const EXPECTED_COUNTS = {
+  'urdesa': 9,
+  'kennedy': 9,
+  'centro': 4,
+  'alborada-samanes': 3,
+  'ceibos': 2,
+  'samborondon': 2,
+  'aeropuerto-terminal': 2,
+  'sur': 1,
+  'via-costa': 1,
+  'mall': 2
+};
 
 // Coordenadas reales de referencia (Google Maps - Verificadas Dic 2025)
 const UBICACIONES_REALES = {
