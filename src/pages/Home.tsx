@@ -4,7 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
-import { Search, Compass, Megaphone, Calendar, LogOut, Heart, Star, MapPin } from 'lucide-react';
+import { Search, Compass, Megaphone, Calendar, LogOut, Heart, Star, MapPin, Home as HomeIcon } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { FavoriteButton } from '../components/ui/FavoriteButton';
 import L from 'leaflet';
@@ -22,8 +22,12 @@ export function Home() {
   const navigate = useNavigate();
   const { parkings: allParkings, usuario } = useParkingContext();
   const { favorites } = useFavorites();
-  const { user, logout } = useAuth();
+  const { user, logout, enableHostMode } = useAuth();
   const [toastMessage, setToastMessage] = useState('');
+
+  // DEBUG: Verificar roles del usuario
+  console.log('Home - User:', user);
+  console.log('Home - Roles:', user?.roles);
 
   const firstName = user?.nombre?.split(' ')[0] || 'Usuario';
   
@@ -43,6 +47,20 @@ export function Home() {
     setTimeout(() => setToastMessage(''), 2500);
   };
 
+  // Handler para convertirse en anfitrión
+  const handleBecomeHost = async () => {
+    try {
+      await enableHostMode();
+      setToastMessage('¡Ahora eres Anfitrión! Redirigiendo...');
+      setTimeout(() => {
+        navigate('/host/dashboard');
+      }, 1500);
+    } catch {
+      setToastMessage('Error al activar modo anfitrión');
+      setTimeout(() => setToastMessage(''), 2500);
+    }
+  };
+
   const suggestionCards = [
     { label: 'Explorar', icon: Compass, action: () => navigate('/buscar') },
     { label: 'Anuncios', icon: Megaphone, action: handleAnunciosClick },
@@ -57,6 +75,20 @@ export function Home() {
   return (
     <Layout showNav backgroundClassName="bg-[#0A1F63]">
       <div className="space-y-5">
+        {/* BANNER: Conviértete en Anfitrión - Solo visible si NO es host */}
+        {user && !user.roles?.host && (
+          <div 
+            className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-xl text-white shadow-lg cursor-pointer hover:from-purple-700 hover:to-blue-700 transition-all"
+            onClick={handleBecomeHost}
+          >
+            <h3 className="font-bold text-lg">¿Tienes un garaje vacío?</h3>
+            <p className="text-sm text-white/90 mt-1">Conviértete en Anfitrión y gana dinero alquilando tu espacio.</p>
+            <span className="inline-block mt-2 text-xs font-semibold bg-white/20 px-3 py-1 rounded-full">
+              Activar ahora →
+            </span>
+          </div>
+        )}
+
         <section className="rounded-3xl bg-gradient-to-br from-[#0A1F63] to-[#132A74] text-white p-6 shadow-xl">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -65,13 +97,25 @@ export function Home() {
                 ¿Quieres buscar estacionamiento?
               </h1>
             </div>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20 transition"
-            >
-              <LogOut size={14} />
-              Salir
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Botón Modo Anfitrión - Solo si es host */}
+              {user?.roles?.host === true && (
+                <button
+                  onClick={() => navigate('/host/dashboard')}
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition"
+                >
+                  <HomeIcon size={14} />
+                  Modo Anfitrión
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20 transition"
+              >
+                <LogOut size={14} />
+                Salir
+              </button>
+            </div>
           </div>
 
           <button

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Car, Home } from 'lucide-react';
 import { AppLogo } from '../components/ui/AppLogo';
 
 export default function SignUp() {
@@ -14,6 +14,10 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  // Roles del usuario
+  const [isDriver, setIsDriver] = useState(true);
+  const [isHost, setIsHost] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -44,12 +48,46 @@ export default function SignUp() {
         setLoading(false);
         return;
       }
+      
+      // Validar que al menos un rol esté seleccionado
+      if (!isLogin && !isDriver && !isHost) {
+        setError('Debes seleccionar al menos un rol (Conductor o Anfitrión).');
+        setLoading(false);
+        return;
+      }
+
       if (isLogin) {
         await login(formData.email, formData.password);
+        // Obtener usuario del localStorage para verificar roles después del login
+        const storedUser = localStorage.getItem('easyparker-current-user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          // REDIRECCIÓN INTELIGENTE también en login
+          if (!userData.roles?.driver && userData.roles?.host) {
+            // Solo Anfitrión -> Dashboard verde
+            navigate('/host/dashboard');
+          } else {
+            // Ambos o Solo Conductor -> Home
+            navigate('/home');
+          }
+        } else {
+          navigate('/home');
+        }
       } else {
-        await signup(formData.nombre, formData.email, formData.password);
+        await signup(formData.nombre, formData.email, formData.password, {
+          driver: isDriver,
+          host: isHost,
+        });
+        
+        // REDIRECCIÓN INTELIGENTE según roles seleccionados
+        if (!isDriver && isHost) {
+          // Solo Anfitrión -> Dashboard verde
+          navigate('/host/dashboard');
+        } else {
+          // Ambos o Solo Conductor -> Home
+          navigate('/home');
+        }
       }
-      navigate('/home');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
       setError(message);
@@ -69,7 +107,7 @@ export default function SignUp() {
     setError('');
   };
 
-  const isSubmitDisabled = loading || (!isLogin && !acceptTerms);
+  const isSubmitDisabled = loading || (!isLogin && !acceptTerms) || (!isLogin && !isDriver && !isHost);
 
   return (
     <div className="min-h-screen bg-[#0A1F63] text-white overflow-y-auto">
@@ -146,6 +184,58 @@ export default function SignUp() {
                 </button>
               </div>
             </div>
+
+            {/* Selector de Roles - Solo en registro */}
+            {!isLogin && (
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-semibold text-[#0A1F63]">¿Cómo usarás EasyParker?</p>
+                
+                {/* Rol Conductor */}
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDriver ? 'bg-[#0A1F63]' : 'bg-slate-200'}`}>
+                      <Car size={20} className={isDriver ? 'text-white' : 'text-slate-400'} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#0A1F63] text-sm">Conductor</p>
+                      <p className="text-xs text-slate-500">Quiero buscar parqueo</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDriver(!isDriver)}
+                    className={`w-12 h-7 rounded-full transition-colors relative ${isDriver ? 'bg-[#0A1F63]' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm transition-transform ${isDriver ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Rol Anfitrión */}
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isHost ? 'bg-emerald-600' : 'bg-slate-200'}`}>
+                      <Home size={20} className={isHost ? 'text-white' : 'text-slate-400'} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#0A1F63] text-sm">Anfitrión</p>
+                      <p className="text-xs text-slate-500">Tengo un garaje para alquilar</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsHost(!isHost)}
+                    className={`w-12 h-7 rounded-full transition-colors relative ${isHost ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm transition-transform ${isHost ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Aviso si ninguno seleccionado */}
+                {!isDriver && !isHost && (
+                  <p className="text-xs text-red-500 text-center">Selecciona al menos un rol</p>
+                )}
+              </div>
+            )}
 
             {!isLogin && (
               <label className="flex items-center gap-3 text-xs text-gray-500 cursor-pointer select-none">

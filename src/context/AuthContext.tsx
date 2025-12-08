@@ -1,18 +1,25 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+interface UserRoles {
+  driver: boolean;
+  host: boolean;
+}
+
 interface User {
   id: string;
   nombre: string;
   email: string;
   avatar?: string;
+  roles: UserRoles;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (nombre: string, email: string, password: string) => Promise<void>;
+  signup: (nombre: string, email: string, password: string, roles?: UserRoles) => Promise<void>;
   logout: () => void;
+  enableHostMode: () => Promise<void>;
   loading: boolean;
 }
 
@@ -27,6 +34,7 @@ const DEFAULT_USERS: Record<string, User> = {
     nombre: 'Samir Demo',
     email: 'demo@easyparker.com',
     avatar: 'https://ui-avatars.com/api/?name=Samir+Demo&background=4F46E5&color=fff',
+    roles: { driver: true, host: true },
   },
 };
 
@@ -92,7 +100,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const signup = async (nombre: string, email: string, password: string): Promise<void> => {
+  const signup = async (
+    nombre: string, 
+    email: string, 
+    password: string, 
+    roles: UserRoles = { driver: true, host: false }
+  ): Promise<void> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Validación básica
@@ -102,12 +115,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             reject(new Error('Este correo ya está registrado. Inicia sesión.'));
             return;
           }
-          // Crear usuario
+          // Crear usuario con roles
           const mockUser: User = {
             id: Date.now().toString(),
             nombre: nombre,
             email: email,
-            avatar: `https://ui-avatars.com/api/?name=${nombre}&background=4F46E5&color=fff`,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(nombre)}&background=4F46E5&color=fff`,
+            roles: roles,
           };
           
           users[email] = mockUser;
@@ -124,6 +138,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  // Permite a un usuario convertirse en Anfitrión sin cerrar sesión
+  const enableHostMode = async (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!user) {
+        reject(new Error('No hay usuario autenticado'));
+        return;
+      }
+      
+      const updatedUser: User = {
+        ...user,
+        roles: { ...user.roles, host: true },
+      };
+      
+      // Actualizar en la DB
+      const users = readUsers();
+      if (users[user.email]) {
+        users[user.email] = updatedUser;
+        persistUsers(users);
+      }
+      
+      // Actualizar estado y localStorage
+      setUser(updatedUser);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+      resolve();
+    });
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem(CURRENT_USER_KEY);
@@ -137,6 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         signup,
         logout,
+        enableHostMode,
         loading,
       }}
     >

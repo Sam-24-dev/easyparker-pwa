@@ -3,6 +3,7 @@ import { ParkingProvider } from './context/ParkingContext';
 import { ReservaProvider } from './context/ReservaContext';
 import { AuthProvider } from './context/AuthContext';
 import { FavoritesProvider } from './context/FavoritesContext';
+import { HostProvider } from './context/HostContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
@@ -13,6 +14,10 @@ import { Detalle } from './pages/Detalle';
 import { Reservar } from './pages/Reservar';
 import { MisReservas } from './pages/MisReservas';
 import { Favoritos } from './pages/Favoritos';
+// Host Pages
+import HostDashboard from './pages/host/HostDashboard';
+import HostGarage from './pages/host/HostGarage';
+import HostWallet from './pages/host/HostWallet';
 
 function AppRoutes() {
   return (
@@ -76,6 +81,32 @@ function AppRoutes() {
           }
         />
 
+        {/* Rutas del Modo Anfitrión */}
+        <Route
+          path="/host/dashboard"
+          element={
+            <ProtectedRoute>
+              <HostDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/host/garage"
+          element={
+            <ProtectedRoute>
+              <HostGarage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/host/wallet"
+          element={
+            <ProtectedRoute>
+              <HostWallet />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Redirigir cualquier ruta desconocida a splash */}
         <Route path="*" element={<Navigate to="/splash" replace />} />
       </Routes>
@@ -90,7 +121,9 @@ function App() {
         <ParkingProvider>
           <FavoritesProvider>
             <ReservaProvider>
-              <AppRoutes />
+              <HostProvider>
+                <AppRoutes />
+              </HostProvider>
             </ReservaProvider>
           </FavoritesProvider>
         </ParkingProvider>
