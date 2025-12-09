@@ -19,6 +19,11 @@ export interface IParking {
   vehiculosPermitidos: TipoVehiculo[];
   zonaValidada?: boolean;
   zonaId?: string;
+  // Campos para gestión de garajes del anfitrión
+  claimedFromId?: number; // ID del parqueo estático del que se reclamó (para copias en userParkings)
+  claimedBy?: string; // Nombre del propietario que reclamó este parqueo
+  isActive?: boolean; // Si el garaje está activo o pausado
+  isPending?: boolean; // Si está pendiente de verificación (creado desde cero)
 }
 
 export interface IReview {

@@ -8,10 +8,13 @@ export function useParkings(searchTerm: string = '') {
   const { calculateDistance } = useDistance();
 
   // Calcular distancia REAL para cada parqueo basada en ubicación del usuario
-  const parkingsWithDistance = parkings.map(p => ({
-    ...p,
-    distancia: calculateDistance(usuario.lat, usuario.lng, p.lat, p.lng)
-  }));
+  // También filtrar garajes pausados (isActive === false)
+  const parkingsWithDistance = parkings
+    .filter(p => p.isActive !== false) // Solo mostrar garajes activos
+    .map(p => ({
+      ...p,
+      distancia: calculateDistance(usuario.lat, usuario.lng, p.lat, p.lng)
+    }));
 
   const getFilteredParkings = (): IParking[] => {
     let filtered = parkingsWithDistance;

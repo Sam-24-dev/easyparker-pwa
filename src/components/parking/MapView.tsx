@@ -2,6 +2,7 @@ import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMapEvents } from 'react-leaflet';
 import L, { LeafletMouseEvent, Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapPin } from 'lucide-react';
 import { IParking } from '../../types/index';
 import { useNavigate } from 'react-router-dom';
 import { VALIDATED_ZONES } from '../../data/validatedZones';
@@ -240,7 +241,7 @@ export function MapView({
               <div className="text-center p-1">
                 <strong className="text-base text-[#0B1F60]">{zone.name}</strong>
                 <p className="text-sm text-green-600 mt-1 font-medium">
-                  ✅ Zona Validada
+                  Zona Validada
                 </p>
                 <p className="text-xs text-gray-500">
                   {zone.parkingCount} parqueos verificados
@@ -256,7 +257,7 @@ export function MapView({
         >
           <Popup>
             <div className="text-center">
-              <strong className="text-[#0B1F60]">📍 Tu ubicación</strong>
+              <strong className="text-[#0B1F60]">Tu ubicación</strong>
             </div>
           </Popup>
         </Marker>
@@ -340,7 +341,8 @@ export function MapView({
           onClick={handleCenterUser}
           className="inline-flex items-center gap-2 rounded-full bg-white/95 text-[#0B1F60] text-xs font-semibold px-4 py-2 shadow-lg hover:bg-white"
         >
-          📍 Mi ubicación
+          <MapPin size={14} />
+          Mi ubicación
         </button>
         <div className="rounded-2xl bg-white/90 shadow-lg overflow-hidden">
           <button className="w-10 h-10 text-[#0B1F60] font-bold" onClick={() => mapRef.current?.zoomIn()}>

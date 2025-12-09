@@ -50,7 +50,7 @@ export default function HostDashboard() {
     handleRequest(id, action);
     
     if (action === 'accept' && request) {
-      setToast({ message: `+$${request.totalPrice.toFixed(2)} ganados 🎉`, type: 'success' });
+      setToast({ message: `+$${request.totalPrice.toFixed(2)} ganados`, type: 'success' });
     } else {
       setToast({ message: 'Solicitud rechazada', type: 'error' });
     }
