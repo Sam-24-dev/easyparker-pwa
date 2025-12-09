@@ -1,55 +1,37 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HostLayout } from '../../components/host/HostLayout';
 import { useHost } from '../../context/HostContext';
 import { useAuth } from '../../context/AuthContext';
 import { DollarSign, Calendar, Star, Check, X, User, Car, LogOut } from 'lucide-react';
-
-// Generador de solicitudes aleatorias
-const generateRandomRequest = () => {
-  const names = ['Juan Pérez', 'María López', 'Carlos Ruiz', 'Ana Torres', 'Luis Gómez', 'Sofía Vargas'];
-  const vehicles = [
-    { model: 'Chevrolet Aveo', plate: 'GBA-1234' },
-    { model: 'Kia Rio', plate: 'GTC-5678' },
-    { model: 'Hyundai Tucson', plate: 'GSB-9012' },
-    { model: 'Chevrolet Spark', plate: 'GDA-3456' },
-    { model: 'Toyota Yaris', plate: 'GEF-7890' },
-  ];
-  
-  const randomName = names[Math.floor(Math.random() * names.length)];
-  const randomVehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
-  const now = new Date();
-  const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-
-  return {
-    id: `req-${Date.now()}`,
-    driverName: randomName,
-    driverImage: `https://ui-avatars.com/api/?name=${encodeURIComponent(randomName)}&background=random`,
-    vehicleModel: randomVehicle.model,
-    vehiclePlate: randomVehicle.plate,
-    startTime: now.toISOString(),
-    endTime: endTime.toISOString(),
-    totalPrice: parseFloat((Math.random() * 5 + 2).toFixed(2)),
-    status: 'pending' as const,
-    timestamp: 'Ahora'
-  };
-};
+import { generateRandomRequest } from '../../data/hostMock';
 
 export default function HostDashboard() {
   const navigate = useNavigate();
   const { stats, requests, handleRequest, isOnline, toggleOnline, addRequest, toggleHostMode } = useHost();
   const { user, logout } = useAuth();
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Generar solicitudes automáticas cada 15 segundos si está online
+  // Generar solicitudes automáticas cada 10 segundos si está online
   useEffect(() => {
     if (!isOnline) return;
 
+    // Generar primera solicitud después de 5 segundos
+    const initialTimeout = setTimeout(() => {
+      const newRequest = generateRandomRequest();
+      addRequest(newRequest);
+    }, 5000);
+
+    // Luego cada 10 segundos
     const interval = setInterval(() => {
       const newRequest = generateRandomRequest();
       addRequest(newRequest);
-    }, 15000);
+    }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [isOnline, addRequest]);
 
   const handleSwitchToDriver = () => {
@@ -60,6 +42,20 @@ export default function HostDashboard() {
   const handleLogout = () => {
     logout();
     navigate('/signup?mode=login');
+  };
+
+  // Manejar aceptar/rechazar con feedback visual
+  const handleRequestAction = (id: string, action: 'accept' | 'reject') => {
+    const request = requests.find(r => r.id === id);
+    handleRequest(id, action);
+    
+    if (action === 'accept' && request) {
+      setToast({ message: `+$${request.totalPrice.toFixed(2)} ganados 🎉`, type: 'success' });
+    } else {
+      setToast({ message: 'Solicitud rechazada', type: 'error' });
+    }
+    
+    setTimeout(() => setToast(null), 2500);
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -195,14 +191,14 @@ export default function HostDashboard() {
                 {req.status === 'pending' && (
                   <div className="flex gap-2">
                     <button 
-                      onClick={() => handleRequest(req.id, 'reject')}
-                      className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-slate-50"
+                      onClick={() => handleRequestAction(req.id, 'reject')}
+                      className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-slate-50 active:scale-95 transition-transform"
                     >
                       <X size={16} /> Rechazar
                     </button>
                     <button 
-                      onClick={() => handleRequest(req.id, 'accept')}
-                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-emerald-700"
+                      onClick={() => handleRequestAction(req.id, 'accept')}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-emerald-700 active:scale-95 transition-transform"
                     >
                       <Check size={16} /> Aceptar
                     </button>
@@ -213,6 +209,15 @@ export default function HostDashboard() {
           </div>
         )}
       </div>
+
+      {/* Toast de feedback */}
+      {toast && (
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-50 animate-bounce ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </HostLayout>
   );
 }

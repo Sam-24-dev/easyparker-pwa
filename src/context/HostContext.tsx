@@ -57,19 +57,8 @@ const mockHostGarage: Partial<IParking> = {
   vehiculosPermitidos: ['Auto'],
 };
 
-const mockHostRequests: HostRequest[] = [
-  {
-    id: 'req-1',
-    driverName: 'Juan Pérez',
-    vehicleModel: 'Toyota Yaris',
-    vehiclePlate: 'GBA-1234',
-    startTime: '2025-12-08T14:00:00',
-    endTime: '2025-12-08T16:00:00',
-    totalPrice: 5.00,
-    status: 'pending',
-    timestamp: 'Hace 5 min'
-  },
-];
+// Inicialmente vacío - las solicitudes llegan solo cuando está "Disponible"
+const mockHostRequests: HostRequest[] = [];
 
 const mockTransactions: Transaction[] = [
   {
