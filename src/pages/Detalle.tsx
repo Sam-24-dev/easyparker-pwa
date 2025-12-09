@@ -115,6 +115,12 @@ export function Detalle() {
             ? { label: 'Solo Motos', icon: Bike }
             : { label: 'Restricción de vehículos', icon: Car };
 
+      // Verificar características reales del parking
+      const hasGuardia = parking.seguridad?.includes('Guardia 24h') ?? false;
+      const hasCamaras = parking.seguridad?.includes('Cámaras') ?? false;
+      const hasTecho = parking.seguridad?.includes('Techo') ?? false;
+      const hasPMR = parking.accesiblePMR ?? false;
+
       return [
         {
           label: vehicleInfo.label,
@@ -125,25 +131,25 @@ export function Detalle() {
         {
           label: 'Seguridad 24/7',
           icon: ShieldCheck,
-          active: true,
+          active: hasGuardia,
           tooltip: 'Personal o guardia en sitio',
         },
         {
           label: 'Cámaras activas',
           icon: Camera,
-          active: true,
+          active: hasCamaras,
           tooltip: 'Zona monitoreada con CCTV',
         },
         {
           label: 'Acceso PMR',
           icon: Accessibility,
-          active: true,
+          active: hasPMR,
           tooltip: 'Espacios adaptados para movilidad reducida',
         },
         {
           label: 'Zona techada',
           icon: Warehouse,
-          active: true,
+          active: hasTecho,
           tooltip: 'Protección contra lluvia y sol',
         },
         {

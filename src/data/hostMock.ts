@@ -20,6 +20,52 @@ export interface HostStats {
   totalViews: number;
 }
 
+// Fotos placeholder de garajes para el selector - SOLO estacionamientos/garajes reales
+export const GARAGE_PLACEHOLDER_PHOTOS = [
+  'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800&q=80', // parking structure amarillo
+  'https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=800&q=80', // garage interior oscuro
+  'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800&q=80', // garage residencial vacío
+  'https://images.unsplash.com/photo-1621929747188-0b4dc28498d2?w=800&q=80', // parking subterráneo moderno
+  'https://images.unsplash.com/photo-1486006920555-c77dcf18193c?w=800&q=80', // estacionamiento techado
+];
+
+// Zonas disponibles para el dropdown
+export const AVAILABLE_ZONES = [
+  { id: 'urdesa', name: 'Urdesa', icon: '🏘️' },
+  { id: 'kennedy', name: 'Kennedy', icon: '🏥' },
+  { id: 'centro', name: 'Centro / Malecón', icon: '🏛️' },
+  { id: 'alborada-samanes', name: 'Norte (Alborada/Samanes)', icon: '🏙️' },
+  { id: 'aeropuerto-terminal', name: 'Aeropuerto / Terminal', icon: '✈️' },
+  { id: 'ceibos', name: 'Ceibos', icon: '🌳' },
+  { id: 'samborondon', name: 'Vía Samborondón', icon: '🌉' },
+  { id: 'sur', name: 'Sur de Guayaquil', icon: '🏢' },
+  { id: 'via-costa', name: 'Vía a la Costa', icon: '⚽' },
+];
+
+// Función para detectar zona automáticamente basada en coordenadas
+export const detectZoneFromCoords = (lat: number, lng: number): string => {
+  // Bounds aproximados de cada zona en Guayaquil
+  const zoneBounds: { id: string; latMin: number; latMax: number; lngMin: number; lngMax: number }[] = [
+    { id: 'urdesa', latMin: -2.19, latMax: -2.16, lngMin: -79.92, lngMax: -79.89 },
+    { id: 'kennedy', latMin: -2.18, latMax: -2.15, lngMin: -79.91, lngMax: -79.88 },
+    { id: 'centro', latMin: -2.21, latMax: -2.18, lngMin: -79.90, lngMax: -79.87 },
+    { id: 'alborada-samanes', latMin: -2.15, latMax: -2.10, lngMin: -79.92, lngMax: -79.87 },
+    { id: 'aeropuerto-terminal', latMin: -2.17, latMax: -2.14, lngMin: -79.89, lngMax: -79.86 },
+    { id: 'ceibos', latMin: -2.18, latMax: -2.14, lngMin: -79.95, lngMax: -79.92 },
+    { id: 'samborondon', latMin: -2.15, latMax: -2.08, lngMin: -79.88, lngMax: -79.82 },
+    { id: 'sur', latMin: -2.25, latMax: -2.21, lngMin: -79.92, lngMax: -79.88 },
+    { id: 'via-costa', latMin: -2.20, latMax: -2.16, lngMin: -80.00, lngMax: -79.95 },
+  ];
+
+  for (const zone of zoneBounds) {
+    if (lat >= zone.latMin && lat <= zone.latMax && lng >= zone.lngMin && lng <= zone.lngMax) {
+      return zone.id;
+    }
+  }
+
+  return ''; // No se detectó zona, el usuario debe elegir manualmente
+};
+
 // Nombres aleatorios para conductores
 export const driverNames = [
   'Juan Pérez',
