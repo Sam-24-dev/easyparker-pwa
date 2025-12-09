@@ -1,30 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HostLayout } from '../../components/host/HostLayout';
-import { useHost } from '../../context/HostContext';
+import { useHost, HostRequest } from '../../context/HostContext';
 import { useAuth } from '../../context/AuthContext';
-import { DollarSign, Calendar, Star, Check, X, User, Car, LogOut } from 'lucide-react';
-import { generateRandomRequest } from '../../data/hostMock';
+import { useParkingContext } from '../../context/ParkingContext';
+import { 
+  DollarSign, Calendar, Star, Check, X, User, Car, LogOut, 
+  Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
+  Home
+} from 'lucide-react';
+
+type TabType = 'pending' | 'in-progress' | 'history';
 
 export default function HostDashboard() {
   const navigate = useNavigate();
-  const { stats, requests, handleRequest, isOnline, toggleOnline, addRequest, toggleHostMode } = useHost();
+  const { 
+    stats, requests, handleRequest, isOnline, toggleOnline, addRequest, toggleHostMode,
+    historyRequests, recoverRequest, todayStats, generateRequestForParking, updateRequestStatus
+  } = useHost();
   const { user, logout } = useAuth();
+  const { userParkings } = useParkingContext();
+  
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [filterParkingId, setFilterParkingId] = useState<number | 'all'>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  
+  // Countdowns para recovery (60s)
+  const [, forceUpdate] = useState(0);
+  
+  // userParkings YA incluye los garajes creados + reclamados (viene del contexto combinado)
+  // No necesitamos volver a agregar los claimedParkings
+  const allMyGarages = useMemo(() => {
+    return userParkings;
+  }, [userParkings]);
 
-  // Generar solicitudes automáticas cada 10 segundos si está online
+  // Obtener solo los garajes ACTIVOS (para generar solicitudes y contador)
+  const activeGarages = useMemo(() => {
+    return allMyGarages.filter(p => p.isActive !== false);
+  }, [allMyGarages]);
+
+  // Generar solicitudes automáticas cada 10 segundos si está online (SOLO para garajes activos)
   useEffect(() => {
-    if (!isOnline) return;
+    if (!isOnline || activeGarages.length === 0) return;
 
     // Generar primera solicitud después de 5 segundos
     const initialTimeout = setTimeout(() => {
-      const newRequest = generateRandomRequest();
+      const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
+      const newRequest = generateRequestForParking(randomGarage);
       addRequest(newRequest);
     }, 5000);
 
     // Luego cada 10 segundos
     const interval = setInterval(() => {
-      const newRequest = generateRandomRequest();
+      const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
+      const newRequest = generateRequestForParking(randomGarage);
       addRequest(newRequest);
     }, 10000);
 
@@ -32,7 +62,30 @@ export default function HostDashboard() {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [isOnline, addRequest]);
+  }, [isOnline, activeGarages, addRequest, generateRequestForParking]);
+
+  // Actualizar countdowns cada segundo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(n => n + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Verificar y actualizar solicitudes "en curso" que ya terminaron
+  useEffect(() => {
+    const interval = setInterval(() => {
+      requests.forEach(req => {
+        if (req.status === 'in-progress') {
+          const endTime = new Date(req.endTime).getTime();
+          if (Date.now() >= endTime) {
+            updateRequestStatus(req.id, 'completed');
+          }
+        }
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [requests, updateRequestStatus]);
 
   const handleSwitchToDriver = () => {
     toggleHostMode();
@@ -50,15 +103,167 @@ export default function HostDashboard() {
     handleRequest(id, action);
     
     if (action === 'accept' && request) {
-      setToast({ message: `+$${request.totalPrice.toFixed(2)} ganados`, type: 'success' });
+      const netEarning = (request.totalPrice * 0.9).toFixed(2);
+      setToast({ message: `+$${netEarning} ganados (neto)`, type: 'success' });
     } else {
-      setToast({ message: 'Solicitud rechazada', type: 'error' });
+      setToast({ message: 'Solicitud rechazada - 60s para recuperar', type: 'error' });
     }
     
     setTimeout(() => setToast(null), 2500);
   };
 
-  const pendingRequests = requests.filter(r => r.status === 'pending');
+  // Manejar recuperación de solicitud rechazada
+  const handleRecover = (id: string) => {
+    recoverRequest(id);
+    setToast({ message: 'Solicitud recuperada', type: 'success' });
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  // Filtrar solicitudes por garaje
+  const filteredRequests = useMemo(() => {
+    let list = requests;
+    if (filterParkingId !== 'all') {
+      list = list.filter(r => r.parkingId === filterParkingId);
+    }
+    return list;
+  }, [requests, filterParkingId]);
+
+  // Solicitudes por tab
+  const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+  const inProgressRequests = filteredRequests.filter(r => r.status === 'in-progress');
+  
+  // Historial filtrado también por garaje
+  const filteredHistory = useMemo(() => {
+    let list = historyRequests;
+    if (filterParkingId !== 'all') {
+      list = list.filter(r => r.parkingId === filterParkingId);
+    }
+    return list;
+  }, [historyRequests, filterParkingId]);
+
+  // Calcular tiempo restante para recovery
+  const getRecoveryTimeLeft = (rejectedAt?: number): number => {
+    if (!rejectedAt) return 0;
+    const elapsed = Date.now() - rejectedAt;
+    return Math.max(0, 60 - Math.floor(elapsed / 1000));
+  };
+
+  // Calcular tiempo restante para solicitud "en curso"
+  const getTimeRemaining = (endTime: string): string => {
+    const end = new Date(endTime).getTime();
+    const now = Date.now();
+    const diff = end - now;
+    
+    if (diff <= 0) return 'Finalizada';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m ${seconds}s`;
+  };
+
+  // Renderizar tarjeta de solicitud
+  const renderRequestCard = (req: HostRequest, showRecovery = false) => {
+    const recoveryTime = showRecovery ? getRecoveryTimeLeft(req.rejectedAt) : 0;
+    
+    return (
+      <div key={req.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        {/* Información del garaje */}
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+          {req.parkingPhoto ? (
+            <img src={req.parkingPhoto} alt="" className="w-8 h-8 rounded-lg object-cover" />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <Home size={14} className="text-emerald-600" />
+            </div>
+          )}
+          <span className="text-xs font-medium text-slate-600">{req.parkingName}</span>
+        </div>
+        
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center gap-3">
+            <img 
+              src={req.driverImage || `https://ui-avatars.com/api/?name=${req.driverName}`} 
+              alt={req.driverName}
+              className="w-10 h-10 rounded-full bg-slate-100 object-cover"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-slate-800">{req.driverName}</h3>
+                {req.driverVerified && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                    <Shield size={10} /> Verificado
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">{req.vehicleModel} • {req.vehiclePlate}</p>
+            </div>
+          </div>
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+            req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+            req.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+            req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+            'bg-emerald-100 text-emerald-700'
+          }`}>
+            {req.status === 'pending' ? 'Pendiente' : 
+             req.status === 'in-progress' ? 'En curso' :
+             req.status === 'rejected' ? 'Rechazada' : 'Completada'}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded-lg mb-3">
+          <span className="text-slate-600">
+            {new Date(req.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
+            {new Date(req.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          </span>
+          <span className="font-bold text-emerald-700">${req.totalPrice.toFixed(2)}</span>
+        </div>
+
+        {/* Countdown para "En curso" */}
+        {req.status === 'in-progress' && (
+          <div className="flex items-center justify-center gap-2 py-2 bg-blue-50 rounded-lg mb-3">
+            <Clock size={16} className="text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">
+              Termina en {getTimeRemaining(req.endTime)}
+            </span>
+          </div>
+        )}
+
+        {/* Botones de acción para pendientes */}
+        {req.status === 'pending' && (
+          <div className="flex gap-2">
+            <button 
+              onClick={() => handleRequestAction(req.id, 'reject')}
+              className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-slate-50 active:scale-95 transition-transform"
+            >
+              <X size={16} /> Rechazar
+            </button>
+            <button 
+              onClick={() => handleRequestAction(req.id, 'accept')}
+              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-emerald-700 active:scale-95 transition-transform"
+            >
+              <Check size={16} /> Aceptar
+            </button>
+          </div>
+        )}
+
+        {/* Botón de recuperación para historial */}
+        {showRecovery && recoveryTime > 0 && (
+          <button 
+            onClick={() => handleRecover(req.id)}
+            className="w-full py-2 rounded-xl border-2 border-amber-400 text-amber-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-amber-50 active:scale-95 transition-transform"
+          >
+            <RotateCcw size={16} /> 
+            Recuperar ({recoveryTime}s)
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <HostLayout showNav>
@@ -102,16 +307,49 @@ export default function HostDashboard() {
               {isOnline ? 'Recibiendo Reservas' : 'No disponible'}
             </h3>
             <p className="text-xs text-slate-500">
-              {isOnline ? 'Tu garaje es visible para conductores' : 'Activa para recibir solicitudes'}
+              {isOnline 
+                ? `${activeGarages.length} garaje${activeGarages.length !== 1 ? 's' : ''} activo${activeGarages.length !== 1 ? 's' : ''}`
+                : 'Activa para recibir solicitudes'}
             </p>
           </div>
         </div>
         <button
           onClick={toggleOnline}
-          className={`w-14 h-8 rounded-full transition-colors relative ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`}
+          disabled={activeGarages.length === 0}
+          className={`w-14 h-8 rounded-full transition-colors relative ${
+            isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+          } ${activeGarages.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <div className={`w-6 h-6 bg-white rounded-full absolute top-1 shadow-sm transition-transform ${isOnline ? 'left-7' : 'left-1'}`} />
         </button>
+      </div>
+
+      {/* Estadísticas del día */}
+      <div className="bg-gradient-to-r from-emerald-50 to-blue-50 p-4 rounded-2xl border border-emerald-100">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <TrendingUp size={16} className="text-emerald-600" />
+          Estadísticas de Hoy
+        </h3>
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div>
+            <span className="text-lg font-bold text-slate-800">{todayStats.requests}</span>
+            <p className="text-[10px] text-slate-500">Solicitudes</p>
+          </div>
+          <div>
+            <span className="text-lg font-bold text-emerald-600">{todayStats.accepted}</span>
+            <p className="text-[10px] text-slate-500">Aceptadas</p>
+          </div>
+          <div>
+            <span className="text-lg font-bold text-emerald-700">${todayStats.earnings.toFixed(2)}</span>
+            <p className="text-[10px] text-slate-500">Ganado</p>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-lg font-bold text-blue-600 flex items-center gap-0.5">
+              {todayStats.acceptanceRate}%
+            </span>
+            <p className="text-[10px] text-slate-500">Tasa</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -121,14 +359,14 @@ export default function HostDashboard() {
             <DollarSign size={16} className="text-emerald-600" />
           </div>
           <span className="text-lg font-bold text-slate-800">${stats.earnings.toFixed(2)}</span>
-          <p className="text-[10px] text-slate-500">Ganancias</p>
+          <p className="text-[10px] text-slate-500">Total Ganancias</p>
         </div>
         <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 text-center">
           <div className="w-8 h-8 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-2">
             <Calendar size={16} className="text-blue-600" />
           </div>
           <span className="text-lg font-bold text-slate-800">{stats.activeReservations}</span>
-          <p className="text-[10px] text-slate-500">Reservas</p>
+          <p className="text-[10px] text-slate-500">En Curso</p>
         </div>
         <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 text-center">
           <div className="w-8 h-8 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-2">
@@ -139,74 +377,143 @@ export default function HostDashboard() {
         </div>
       </div>
 
-      {/* Solicitudes */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
-          Solicitudes
-          {isOnline && pendingRequests.length > 0 && (
-            <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">
-              {pendingRequests.length} nuevas
-            </span>
-          )}
-        </h2>
+      {/* Tabs + Filtro */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          <button 
+            onClick={() => setActiveTab('pending')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'pending' 
+                ? 'bg-white text-emerald-700 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            Pendientes
+            {pendingRequests.length > 0 && (
+              <span className="ml-1 bg-emerald-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => setActiveTab('in-progress')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'in-progress' 
+                ? 'bg-white text-blue-700 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            En Curso
+            {inProgressRequests.length > 0 && (
+              <span className="ml-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {inProgressRequests.length}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'history' 
+                ? 'bg-white text-slate-700 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            Historial
+            {filteredHistory.length > 0 && (
+              <span className="ml-1 bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {filteredHistory.length}
+              </span>
+            )}
+          </button>
+        </div>
         
-        {requests.length === 0 ? (
-          <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100">
-            <p>No hay solicitudes pendientes</p>
-            {!isOnline && <p className="text-xs mt-2">Activa el modo "Recibiendo Reservas"</p>}
+        {/* Filtro por garaje - Solo garajes ACTIVOS */}
+        {activeGarages.length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+            >
+              <Home size={14} />
+              {filterParkingId === 'all' ? 'Todos' : activeGarages.find(g => g.id === filterParkingId)?.nombre?.slice(0, 12) || 'Filtrar'}
+              <ChevronDown size={14} />
+            </button>
+            
+            {showFilterDropdown && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 min-w-[160px] py-1">
+                <button
+                  onClick={() => { setFilterParkingId('all'); setShowFilterDropdown(false); }}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                    filterParkingId === 'all' ? 'text-emerald-600 font-medium' : 'text-slate-600'
+                  }`}
+                >
+                  Todos los garajes
+                </button>
+                {activeGarages.map(g => (
+                  <button
+                    key={g.id}
+                    onClick={() => { setFilterParkingId(g.id); setShowFilterDropdown(false); }}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${
+                      filterParkingId === g.id ? 'text-emerald-600 font-medium' : 'text-slate-600'
+                    }`}
+                  >
+                    {g.foto ? (
+                      <img src={g.foto} alt="" className="w-5 h-5 rounded object-cover" />
+                    ) : (
+                      <div className="w-5 h-5 rounded bg-slate-100" />
+                    )}
+                    {g.nombre.length > 15 ? g.nombre.slice(0, 15) + '...' : g.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {requests.slice(0, 5).map((req) => (
-              <div key={req.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={req.driverImage || `https://ui-avatars.com/api/?name=${req.driverName}`} 
-                      alt={req.driverName}
-                      className="w-10 h-10 rounded-full bg-slate-100 object-cover"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-slate-800">{req.driverName}</h3>
-                      <p className="text-xs text-slate-500">{req.vehicleModel} • {req.vehiclePlate}</p>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    req.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {req.status === 'pending' ? 'Pendiente' : req.status === 'accepted' ? 'Aceptada' : 'Rechazada'}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded-lg mb-3">
-                  <span className="text-slate-600">
-                    {new Date(req.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
-                    {new Date(req.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </span>
-                  <span className="font-bold text-emerald-700">${req.totalPrice.toFixed(2)}</span>
-                </div>
+        )}
+      </div>
 
-                {req.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleRequestAction(req.id, 'reject')}
-                      className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-slate-50 active:scale-95 transition-transform"
-                    >
-                      <X size={16} /> Rechazar
-                    </button>
-                    <button 
-                      onClick={() => handleRequestAction(req.id, 'accept')}
-                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-emerald-700 active:scale-95 transition-transform"
-                    >
-                      <Check size={16} /> Aceptar
-                    </button>
-                  </div>
+      {/* Contenido según tab */}
+      <div className="space-y-3 pb-4">
+        {activeTab === 'pending' && (
+          <>
+            {pendingRequests.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100">
+                <p>No hay solicitudes pendientes</p>
+                {!isOnline && <p className="text-xs mt-2">Activa el modo "Recibiendo Reservas"</p>}
+                {isOnline && activeGarages.length === 0 && (
+                  <p className="text-xs mt-2">Crea o reclama un garaje primero</p>
                 )}
               </div>
-            ))}
-          </div>
+            ) : (
+              pendingRequests.map(req => renderRequestCard(req))
+            )}
+          </>
+        )}
+
+        {activeTab === 'in-progress' && (
+          <>
+            {inProgressRequests.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100">
+                <Clock size={32} className="mx-auto mb-2 text-slate-300" />
+                <p>No hay reservas en curso</p>
+              </div>
+            ) : (
+              inProgressRequests.map(req => renderRequestCard(req))
+            )}
+          </>
+        )}
+
+        {activeTab === 'history' && (
+          <>
+            {filteredHistory.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100">
+                <RotateCcw size={32} className="mx-auto mb-2 text-slate-300" />
+                <p>Historial vacío</p>
+                <p className="text-xs mt-2">Las solicitudes rechazadas aparecen aquí por 60 segundos</p>
+              </div>
+            ) : (
+              filteredHistory.map(req => renderRequestCard(req, true))
+            )}
+          </>
         )}
       </div>
 

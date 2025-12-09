@@ -207,60 +207,64 @@ export function MisReservas() {
     if (!parking) return null;
 
     return (
-      <Card className="p-4 mb-3">
-        <div className="flex gap-4">
+      <Card className="p-3 sm:p-4 mb-3">
+        <div className="flex gap-3 sm:gap-4">
           <img
             src={parking.foto}
             alt={parking.nombre}
             loading="lazy"
-            className="w-20 h-20 rounded object-cover flex-shrink-0 bg-slate-200"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded object-cover flex-shrink-0 bg-slate-200"
           />
-          <div className="flex-1">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-gray-900">{parking.nombre}</h3>
-                <p className="text-xs text-gray-600 mt-1">{parking.tipo}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-1 sm:mb-2 gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{parking.nombre}</h3>
+                <p className="text-xs text-gray-600 mt-0.5 sm:mt-1">{parking.tipo}</p>
               </div>
               <Badge variant={reserva.estado === 'activa' ? 'success' : 'neutral'} size="sm">
                 {reserva.estado === 'activa' ? 'Activa' : 'Completada'}
               </Badge>
             </div>
 
-            <div className="text-sm text-gray-600 mb-3">
+            <div className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
               <p>{reserva.fecha} • {reserva.horaInicio} - {reserva.horaFin}</p>
             </div>
 
-            <div className="flex items-center gap-3 mb-3">
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 sm:px-3 py-0.5 sm:py-1 text-xs font-semibold text-slate-700">
                 {reserva.vehiculo === 'Moto' ? '🏍️' : '🚗'} {reserva.vehiculo}
               </span>
-              <span className="font-mono text-sm text-[#0B1F60] tracking-[0.3em]">{reserva.placa || 'PLACA'}</span>
+              <span className="font-mono text-xs sm:text-sm text-[#0B1F60] tracking-[0.2em] sm:tracking-[0.3em]">{reserva.placa || 'PLACA'}</span>
             </div>
 
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <code className="text-xs font-mono font-bold text-primary">{reserva.id}</code>
-              <div className="flex gap-2 flex-wrap justify-end">
+              <div className="flex gap-1.5 sm:gap-2 flex-wrap">
                 {reserva.estado === 'activa' && (
                   <>
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => abrirModalQR(reserva)}
+                      className="text-xs px-2 sm:px-3"
                     >
-                      <QrCode size={16} className="mr-1" /> QR
+                      <QrCode size={14} className="sm:mr-1" /> <span className="hidden sm:inline">QR</span>
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => abrirModalExtension(reserva)}
+                      className="text-xs px-2 sm:px-3"
                     >
-                      Extender
+                      <span className="hidden sm:inline">Extender</span>
+                      <span className="sm:hidden">+</span>
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       onClick={() => abrirModalCancelacion(reserva)}
+                      className="text-xs px-2 sm:px-3"
                     >
-                      <X size={16} className="mr-1" /> Cancelar
+                      <X size={14} className="sm:mr-1" /> <span className="hidden sm:inline">Cancelar</span>
                     </Button>
                   </>
                 )}
@@ -269,6 +273,7 @@ export function MisReservas() {
                     size="sm"
                     variant="danger"
                     onClick={() => abrirModalEliminacion(reserva)}
+                    className="text-xs px-2 sm:px-3"
                   >
                     Eliminar
                   </Button>
@@ -277,8 +282,10 @@ export function MisReservas() {
                   size="sm"
                   variant="secondary"
                   onClick={() => navigate('/buscar')}
+                  className="text-xs px-2 sm:px-3"
                 >
-                  Ver en mapa
+                  <MapPin size={14} className="sm:mr-1" />
+                  <span className="hidden sm:inline">Ver mapa</span>
                 </Button>
               </div>
             </div>
@@ -333,10 +340,10 @@ export function MisReservas() {
         title="Extender reserva"
       >
         {reservaSeleccionada && selectedParking ? (
-          <div className="space-y-4 text-[#0B1F60]">
-            <div className="rounded-2xl bg-[#EEF0FF] p-4 text-sm">
+          <div className="space-y-3 sm:space-y-4 text-[#0B1F60]">
+            <div className="rounded-xl sm:rounded-2xl bg-[#EEF0FF] p-3 sm:p-4 text-sm">
               <p className="font-semibold">{selectedParking.nombre}</p>
-              <p className="text-slate-500">{reservaSeleccionada.fecha}</p>
+              <p className="text-slate-500 text-xs sm:text-sm">{reservaSeleccionada.fecha}</p>
               <p className="text-xs text-slate-500 mt-1">
                 Actual: {reservaSeleccionada.horaInicio} - {reservaSeleccionada.horaFin}
               </p>
@@ -349,7 +356,7 @@ export function MisReservas() {
                   <button
                     key={opcion.value}
                     onClick={() => setExtraSeleccionada(opcion.value)}
-                    className={`rounded-2xl border px-2 py-2 text-sm font-semibold transition ${
+                    className={`rounded-xl sm:rounded-2xl border px-2 py-2 text-sm font-semibold transition ${
                       extraSeleccionada === opcion.value
                         ? 'border-[#0B1F60] bg-[#0B1F60] text-white'
                         : 'border-slate-200 bg-white text-[#0B1F60]'
@@ -361,16 +368,16 @@ export function MisReservas() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-4 flex items-center justify-between text-sm">
+            <div className="rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4 flex items-center justify-between text-sm">
               <div>
-                <p className="text-slate-500">Nuevo horario</p>
-                <p className="font-semibold text-lg">
+                <p className="text-slate-500 text-xs sm:text-sm">Nuevo horario</p>
+                <p className="font-semibold text-base sm:text-lg">
                   {reservaSeleccionada.horaInicio} - {sumarHoras(reservaSeleccionada.horaFin, extraSeleccionada)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-slate-500">Total extra</p>
-                <p className="text-xl font-bold">
+                <p className="text-lg sm:text-xl font-bold">
                   ${ (selectedParking.precio * extraSeleccionada).toFixed(2) }
                 </p>
               </div>
@@ -394,14 +401,14 @@ export function MisReservas() {
         title="Eliminar reserva"
       >
         {reservaParaEliminar ? (
-          <div className="space-y-4 text-[#0B1F60]">
-            <div className="rounded-2xl bg-[#FDECEC] border border-red-100 p-4 text-sm">
+          <div className="space-y-3 sm:space-y-4 text-[#0B1F60]">
+            <div className="rounded-xl sm:rounded-2xl bg-[#FDECEC] border border-red-100 p-3 sm:p-4 text-sm">
               <p className="font-semibold text-red-700">Esta acción no se puede deshacer</p>
-              <p className="text-slate-500">Liberaremos el espacio reservado y quitaremos el comprobante.</p>
+              <p className="text-slate-500 text-xs sm:text-sm">Liberaremos el espacio reservado y quitaremos el comprobante.</p>
             </div>
-            <div className="rounded-2xl bg-[#EEF0FF] p-4 text-sm">
+            <div className="rounded-xl sm:rounded-2xl bg-[#EEF0FF] p-3 sm:p-4 text-sm">
               <p className="font-semibold">{parkingParaEliminar?.nombre ?? 'Parqueo'}</p>
-              <p className="text-slate-500">{reservaParaEliminar.fecha}</p>
+              <p className="text-slate-500 text-xs sm:text-sm">{reservaParaEliminar.fecha}</p>
               <p className="text-xs text-slate-500 mt-1">
                 {reservaParaEliminar.horaInicio} - {reservaParaEliminar.horaFin}
               </p>
@@ -438,14 +445,14 @@ export function MisReservas() {
         title="¿Cancelar reserva?"
       >
         {reservaParaCancelar ? (
-          <div className="space-y-4 text-[#0B1F60]">
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-sm">
+          <div className="space-y-3 sm:space-y-4 text-[#0B1F60]">
+            <div className="rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-200 p-3 sm:p-4 text-sm">
               <p className="font-semibold text-amber-800">No podrás recuperar tu lugar</p>
-              <p className="text-slate-500 mt-1">Tu espacio quedará disponible para otros usuarios.</p>
+              <p className="text-slate-500 mt-1 text-xs sm:text-sm">Tu espacio quedará disponible para otros usuarios.</p>
             </div>
-            <div className="rounded-2xl bg-[#EEF0FF] p-4 text-sm">
+            <div className="rounded-xl sm:rounded-2xl bg-[#EEF0FF] p-3 sm:p-4 text-sm">
               <p className="font-semibold">{parkingParaCancelar?.nombre ?? 'Parqueo'}</p>
-              <p className="text-slate-500">{reservaParaCancelar.fecha}</p>
+              <p className="text-slate-500 text-xs sm:text-sm">{reservaParaCancelar.fecha}</p>
               <p className="text-xs text-slate-500 mt-1">
                 {reservaParaCancelar.horaInicio} - {reservaParaCancelar.horaFin}
               </p>
@@ -482,42 +489,42 @@ export function MisReservas() {
         title="Comprobante digital"
       >
         {reservaParaQR && parkingParaQR ? (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div
               ref={voucherRef}
-              className="rounded-2xl border border-slate-100 bg-white p-5 space-y-4"
+              className="rounded-xl sm:rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 space-y-3 sm:space-y-4"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Código</p>
-                  <p className="text-2xl font-semibold text-[#0B1F60]">{reservaParaQR.id}</p>
+                  <p className="text-xs text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.3em]">Código</p>
+                  <p className="text-xl sm:text-2xl font-semibold text-[#0B1F60]">{reservaParaQR.id}</p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+                <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
                   {reservaParaQR.estado === 'activa' ? 'Activa' : 'Completada'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm">
                 <div>
-                  <p className="text-slate-500">Parqueo</p>
-                  <p className="font-semibold text-[#0B1F60]">{parkingParaQR.nombre}</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">Parqueo</p>
+                  <p className="font-semibold text-[#0B1F60] text-sm truncate">{parkingParaQR.nombre}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Horario</p>
-                  <p className="font-semibold text-[#0B1F60]">{reservaParaQR.horaInicio} - {reservaParaQR.horaFin}</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">Horario</p>
+                  <p className="font-semibold text-[#0B1F60] text-sm">{reservaParaQR.horaInicio} - {reservaParaQR.horaFin}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Vehículo</p>
-                  <p className="font-semibold text-[#0B1F60]">{reservaParaQR.vehiculo}</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">Vehículo</p>
+                  <p className="font-semibold text-[#0B1F60] text-sm">{reservaParaQR.vehiculo}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Placa</p>
-                  <p className="font-mono tracking-[0.2em] text-[#0B1F60]">{reservaParaQR.placa}</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">Placa</p>
+                  <p className="font-mono tracking-[0.15em] sm:tracking-[0.2em] text-[#0B1F60] text-sm">{reservaParaQR.placa}</p>
                 </div>
               </div>
 
-              <div className="flex flex-col items-center gap-2 pt-2">
-                <QRCodeCanvas value={qrValue} size={160} bgColor="#ffffff" fgColor="#0B1F60" />
+              <div className="flex flex-col items-center gap-2 pt-1 sm:pt-2">
+                <QRCodeCanvas value={qrValue} size={130} bgColor="#ffffff" fgColor="#0B1F60" />
                 <p className="text-xs text-slate-500 text-center">
                   Muestra este QR para acceder al parqueo
                 </p>
@@ -527,19 +534,19 @@ export function MisReservas() {
             <div className="grid grid-cols-1 gap-2">
               <button
                 onClick={handleDownloadComprobante}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-2.5 text-[#0B1F60] font-semibold text-sm"
+                className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2 sm:py-2.5 text-[#0B1F60] font-semibold text-sm"
               >
                 <Download size={16} /> Descargar comprobante
               </button>
               <button
                 onClick={handleShareWhatsApp}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-2.5 text-[#0B1F60] font-semibold text-sm"
+                className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2 sm:py-2.5 text-[#0B1F60] font-semibold text-sm"
               >
                 <Share2 size={16} /> Compartir por WhatsApp
               </button>
               <button
                 onClick={handleAddToCalendar}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-2.5 text-[#0B1F60] font-semibold text-sm"
+                className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2 sm:py-2.5 text-[#0B1F60] font-semibold text-sm"
               >
                 <Calendar size={16} /> Agregar al calendario
               </button>

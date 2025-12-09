@@ -563,27 +563,27 @@ export function Reservar() {
       )}
 
       {step === 4 && (
-        <section className="space-y-6">
+        <section className="space-y-4 sm:space-y-6 pb-4">
           <StepHeader title="Comprobante digital" />
 
           <div
             ref={voucherRef}
-            className="rounded-3xl border border-slate-100 bg-white shadow-sm p-6 space-y-6"
+            className="rounded-2xl sm:rounded-3xl border border-slate-100 bg-white shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-6"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Código</p>
-                <p className="text-3xl font-semibold text-[#0B1F60]">{reservaCode}</p>
+                <p className="text-2xl sm:text-3xl font-semibold text-[#0B1F60]">{reservaCode}</p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+              <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">
                 Confirmada
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <p className="text-slate-500">Parqueo</p>
-                <p className="font-semibold text-[#0B1F60]">{parking.nombre}</p>
+                <p className="font-semibold text-[#0B1F60] text-sm">{parking.nombre}</p>
               </div>
               <div>
                 <p className="text-slate-500">Horario</p>
@@ -595,49 +595,49 @@ export function Reservar() {
               </div>
               <div>
                 <p className="text-slate-500">Placa</p>
-                <p className="font-mono tracking-[0.3em] text-[#0B1F60]">{placa.toUpperCase()}</p>
+                <p className="font-mono tracking-[0.2em] sm:tracking-[0.3em] text-[#0B1F60]">{placa.toUpperCase()}</p>
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-3">
-              <QRCodeCanvas value={qrValue} size={180} bgColor="#ffffff" fgColor="#0B1F60" />
-              <p className="text-sm text-slate-500 text-center">
+            <div className="flex flex-col items-center gap-2 sm:gap-3">
+              <QRCodeCanvas value={qrValue} size={140} bgColor="#ffffff" fgColor="#0B1F60" />
+              <p className="text-xs sm:text-sm text-slate-500 text-center px-2">
                 Muestra este QR para abrir la barrera o compártelo con quien vaya a estacionar.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:gap-3">
             <button
               onClick={handleDownloadComprobante}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+              className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2.5 sm:py-3 text-[#0B1F60] font-semibold text-sm"
             >
-              <Download size={18} /> Descargar comprobante
+              <Download size={16} /> Descargar comprobante
             </button>
             <button
               onClick={handleShareWhatsApp}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+              className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2.5 sm:py-3 text-[#0B1F60] font-semibold text-sm"
             >
-              <Share2 size={18} /> Compartir por WhatsApp
+              <Share2 size={16} /> Compartir por WhatsApp
             </button>
             <button
               onClick={handleAddToCalendar}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-[#0B1F60] font-semibold"
+              className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 py-2.5 sm:py-3 text-[#0B1F60] font-semibold text-sm"
             >
-              <Calendar size={18} /> Agregar al calendario
+              <Calendar size={16} /> Agregar al calendario
             </button>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/buscar')}
-              className="flex-1 rounded-2xl border border-slate-200 py-3 font-semibold text-[#0B1F60]"
+              className="flex-1 rounded-xl sm:rounded-2xl border border-slate-200 py-2.5 sm:py-3 font-semibold text-[#0B1F60] text-sm"
             >
               Buscar otro parqueo
             </button>
             <button
               onClick={() => navigate('/mis-reservas')}
-              className="flex-1 rounded-2xl bg-[#0B1F60] text-white py-3 font-semibold"
+              className="flex-1 rounded-xl sm:rounded-2xl bg-[#0B1F60] text-white py-2.5 sm:py-3 font-semibold text-sm"
             >
               Ver mis reservas
             </button>
