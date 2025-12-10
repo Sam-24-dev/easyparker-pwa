@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HostLayout } from '../../components/host/HostLayout';
 import { useParkingContext } from '../../context/ParkingContext';
+import { useAuth } from '../../context/AuthContext';
 import { IParking, TipoVehiculo } from '../../types';
 import { GARAGE_PLACEHOLDER_PHOTOS, AVAILABLE_ZONES, detectZoneFromCoords } from '../../data/hostMock';
 import { parkings as staticParkings } from '../../data/parkings';
@@ -9,7 +10,7 @@ import {
   Camera, ShieldCheck, Warehouse, Save, Clock, Car, Bike, 
   Accessibility, DollarSign, Users, CheckCircle, Zap, MapPin, 
   Navigation, Image, Plus, Edit2, Trash2, Eye, ChevronRight,
-  Search, X, AlertTriangle, Power, Pause, Building2
+  Search, X, AlertTriangle, Power, Pause, Building2, Upload, FileText, CreditCard
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -154,6 +155,10 @@ function AddGarageCard({ onClick, disabled }: { onClick: () => void; disabled: b
 export default function HostGarage() {
   const navigate = useNavigate();
   const { addParking, updateParking, removeParking, claimParking, userParkings } = useParkingContext();
+  const { user } = useAuth();
+  
+  // Obtener nombre del usuario o usar fallback
+  const ownerDisplayName = user?.nombre || 'Propietario';
   
   // Estados principales
   const [showToast, setShowToast] = useState(false);
@@ -169,6 +174,11 @@ export default function HostGarage() {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [parkingToClaim, setParkingToClaim] = useState<IParking | null>(null);
   
+  // Estados de verificación para reclamar
+  const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
+  const [cedulaUploaded, setCedulaUploaded] = useState(false);
+  const [documentUploaded, setDocumentUploaded] = useState(false);
+  
   // Estado de autocompletado
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -176,6 +186,7 @@ export default function HostGarage() {
   // Form State
   const [formData, setFormData] = useState<Partial<IParking>>({
     nombre: '',
+    descripcion: '',
     precio: 0,
     plazasLibres: 1,
     seguridad: [],
@@ -216,6 +227,7 @@ export default function HostGarage() {
   const resetForm = () => {
     setFormData({
       nombre: '',
+      descripcion: '',
       precio: 0,
       plazasLibres: 1,
       seguridad: [],
@@ -304,19 +316,24 @@ export default function HostGarage() {
     setShowClaimModal(true);
   };
 
-  // Confirmar reclamar parqueo
+  // Confirmar reclamar parqueo con verificación
   const handleConfirmClaim = () => {
     if (parkingToClaim && userParkings.length < MAX_GARAGES) {
-      const claimed = claimParking(parkingToClaim.id);
+      // Pasar el ownerName al reclamar
+      const claimed = claimParking(parkingToClaim.id, ownerDisplayName);
       if (claimed) {
-        showToastMessage('Parqueo reclamado exitosamente');
+        showToastMessage('¡Parqueo verificado exitosamente!');
       } else {
-        showToastMessage('No se pudo reclamar el parqueo');
+        showToastMessage('No se pudo verificar el parqueo');
       }
     }
+    // Resetear todos los estados del modal
     setShowClaimModal(false);
     setParkingToClaim(null);
     setSearchQuery('');
+    setVerificationStep(1);
+    setCedulaUploaded(false);
+    setDocumentUploaded(false);
   };
 
   // Obtener ubicación actual con mejor rendimiento
@@ -435,6 +452,7 @@ export default function HostGarage() {
       // Actualizar existente
       updateParking(editingGarage.id, {
         nombre: formData.nombre!,
+        descripcion: formData.descripcion || '',
         lat: formData.lat!,
         lng: formData.lng!,
         precio: formData.precio!,
@@ -451,12 +469,13 @@ export default function HostGarage() {
       // Crear nuevo
       const newParking: Omit<IParking, 'id'> = {
         nombre: formData.nombre!,
+        descripcion: formData.descripcion || '',
         lat: formData.lat!,
         lng: formData.lng!,
         precio: formData.precio!,
         distancia: 0,
         plazasLibres: formData.plazasLibres!,
-        verificado: false, // Nuevos garajes están pendientes de verificación
+        verificado: true, // Garajes creados por el dueño ya están verificados
         seguridad: formData.seguridad || [],
         calificacion: 5.0,
         foto: formData.foto!,
@@ -467,7 +486,8 @@ export default function HostGarage() {
         zonaValidada: true,
         zonaId: formData.zonaId,
         isActive: true,
-        isPending: true, // Marca como pendiente de verificación
+        isPending: false, // Ya verificado porque el dueño lo crea
+        ownerName: ownerDisplayName, // Nombre del dueño real
       };
 
       addParking(newParking);
@@ -804,6 +824,20 @@ export default function HostGarage() {
               />
             </div>
 
+            {/* Descripción */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Descripción del Garaje</label>
+              <textarea
+                value={formData.descripcion || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 resize-none"
+                placeholder="Ej. Garaje techado, amplio, con vigilancia 24/7. Cuidado: hay perro guardián amigable."
+                rows={3}
+                maxLength={200}
+              />
+              <p className="text-xs text-slate-400 mt-1 text-right">{(formData.descripcion || '').length}/200</p>
+            </div>
+
             {/* Precio y Plazas */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1022,45 +1056,163 @@ export default function HostGarage() {
         </div>
       )}
 
-      {/* Modal de Confirmación de Reclamar */}
+      {/* Modal de Confirmación de Reclamar con Verificación */}
       {showClaimModal && parkingToClaim && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6 animate-in fade-in zoom-in">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 animate-in fade-in zoom-in max-h-[90vh] overflow-y-auto">
+            {/* Header */}
             <div className="text-center mb-4">
               <img 
                 src={parkingToClaim.foto} 
                 alt={parkingToClaim.nombre}
-                className="w-24 h-24 rounded-2xl object-cover mx-auto mb-3"
+                className="w-20 h-20 rounded-2xl object-cover mx-auto mb-3"
               />
-              <h3 className="font-bold text-lg text-slate-800">Reclamar Parqueo</h3>
+              <h3 className="font-bold text-lg text-slate-800">Verificar Propiedad</h3>
               <p className="text-sm text-slate-500">{parkingToClaim.nombre}</p>
             </div>
-            
-            <div className="bg-emerald-50 p-4 rounded-xl mb-4">
-              <p className="text-sm text-emerald-700">
-                Al reclamar este parqueo, confirmas que eres el propietario o administrador. 
-                Tu parqueo aparecerá con el badge <strong>Verificado</strong>.
-              </p>
+
+            {/* Indicador de pasos */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                verificationStep === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500 text-white'
+              }`}>
+                <CreditCard size={14} />
+                <span>1. Cédula</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                verificationStep === 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+              }`}>
+                <FileText size={14} />
+                <span>2. Documento</span>
+              </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowClaimModal(false);
-                  setParkingToClaim(null);
-                }}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmClaim}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckCircle size={18} />
-                Reclamar
-              </button>
-            </div>
+            {/* Paso 1: Cédula */}
+            {verificationStep === 1 && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-xl">
+                  <p className="text-sm text-blue-700">
+                    <strong>Paso 1:</strong> Sube una foto de tu cédula de identidad para verificar tu identidad.
+                  </p>
+                </div>
+                
+                <div 
+                  onClick={() => setCedulaUploaded(true)}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                    cedulaUploaded 
+                      ? 'border-emerald-300 bg-emerald-50' 
+                      : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                  }`}
+                >
+                  {cedulaUploaded ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CheckCircle size={24} className="text-emerald-600" />
+                      </div>
+                      <span className="text-emerald-700 font-medium">Cédula subida ✓</span>
+                      <span className="text-xs text-slate-500">Toca para cambiar</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload size={32} className="text-slate-400" />
+                      <span className="text-slate-600 font-medium">Subir foto de cédula</span>
+                      <span className="text-xs text-slate-400">JPG, PNG (máx. 5MB)</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowClaimModal(false);
+                      setParkingToClaim(null);
+                      setVerificationStep(1);
+                      setCedulaUploaded(false);
+                      setDocumentUploaded(false);
+                    }}
+                    className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setVerificationStep(2)}
+                    disabled={!cedulaUploaded}
+                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                      cedulaUploaded 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Siguiente
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Paso 2: Documento de propiedad */}
+            {verificationStep === 2 && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-xl">
+                  <p className="text-sm text-blue-700">
+                    <strong>Paso 2:</strong> Sube un documento que pruebe la propiedad (planilla de luz, escritura, contrato de arrendamiento).
+                  </p>
+                </div>
+                
+                <div 
+                  onClick={() => setDocumentUploaded(true)}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                    documentUploaded 
+                      ? 'border-emerald-300 bg-emerald-50' 
+                      : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                  }`}
+                >
+                  {documentUploaded ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CheckCircle size={24} className="text-emerald-600" />
+                      </div>
+                      <span className="text-emerald-700 font-medium">Documento subido ✓</span>
+                      <span className="text-xs text-slate-500">Toca para cambiar</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload size={32} className="text-slate-400" />
+                      <span className="text-slate-600 font-medium">Subir documento</span>
+                      <span className="text-xs text-slate-400">Planilla de luz, escritura, etc.</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-amber-50 p-3 rounded-xl">
+                  <p className="text-xs text-amber-700 text-center">
+                    📋 En demo: los documentos no se procesan realmente. Solo simulamos el flujo.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setVerificationStep(1)}
+                    className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    onClick={handleConfirmClaim}
+                    disabled={!documentUploaded}
+                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                      documentUploaded 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <ShieldCheck size={18} />
+                    Verificar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

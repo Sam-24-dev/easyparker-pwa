@@ -20,7 +20,8 @@ import {
   Zap,
   ExternalLink,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  User
 } from 'lucide-react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
@@ -219,6 +220,23 @@ export function Detalle() {
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Buscar un estacionamiento</p>
               <h1 className="text-3xl font-semibold text-slate-900 mt-1">{parking.nombre}</h1>
+              
+              {/* Owner info */}
+              {parking.ownerName && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                    {parking.ownerPhoto ? (
+                      <img src={parking.ownerPhoto} alt={parking.ownerName} className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <User size={16} className="text-emerald-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700">{parking.ownerName}</span>
+                    <span className="text-xs text-slate-500">Propietario verificado</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <FavoriteButton parkingId={parking.id} size="md" />
@@ -237,6 +255,13 @@ export function Detalle() {
             <span className="text-lg font-semibold text-gray-900">{parking.calificacion.toFixed(1)}</span>
             <span className="text-sm text-slate-500">{parking.tipo.replace('_', ' ')}</span>
           </div>
+
+          {/* Descripción del parqueo */}
+          {parking.descripcion && (
+            <div className="bg-slate-50 rounded-2xl p-4">
+              <p className="text-sm text-slate-600 leading-relaxed">{parking.descripcion}</p>
+            </div>
+          )}
 
           <div className="rounded-3xl border border-slate-100 p-4 bg-white shadow-sm">
             <div className="flex items-center justify-between">

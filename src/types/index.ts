@@ -3,6 +3,7 @@ export type TipoVehiculo = 'Auto' | 'Moto';
 export interface IParking {
   id: number;
   nombre: string;
+  descripcion?: string; // Descripción breve del garaje
   lat: number;
   lng: number;
   precio: number;
@@ -22,8 +23,16 @@ export interface IParking {
   // Campos para gestión de garajes del anfitrión
   claimedFromId?: number; // ID del parqueo estático del que se reclamó (para copias en userParkings)
   claimedBy?: string; // Nombre del propietario que reclamó este parqueo
+  ownerName?: string; // Nombre del dueño del garaje
+  ownerPhoto?: string; // Foto del dueño
   isActive?: boolean; // Si el garaje está activo o pausado
   isPending?: boolean; // Si está pendiente de verificación (creado desde cero)
+  // Campos de verificación
+  verificationDocs?: {
+    cedula?: string; // URL/nombre del archivo de cédula
+    document?: string; // URL/nombre del documento (planilla/escritura)
+    submittedAt?: string; // Fecha de envío
+  };
 }
 
 export interface IReview {

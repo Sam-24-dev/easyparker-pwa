@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { StarRating } from '../ui/StarRating';
 import { Button } from '../ui/Button';
-import { MapPin, DollarSign, CheckCircle } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, User } from 'lucide-react';
 
 interface ParkingCardProps {
   parking: IParking;
@@ -62,10 +62,24 @@ export function ParkingCard({ parking, onClick, onLocateClick, onReserveClick }:
       </div>
       
       <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="font-semibold text-gray-900 flex-1 line-clamp-1">{parking.nombre}</h3>
           {parking.verificado && <Badge variant="success" size="sm">VERIFICADO</Badge>}
         </div>
+
+        {/* Owner info */}
+        {parking.ownerName && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+              {parking.ownerPhoto ? (
+                <img src={parking.ownerPhoto} alt={parking.ownerName} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <User size={12} className="text-emerald-600" />
+              )}
+            </div>
+            <span className="text-xs text-slate-600">{parking.ownerName}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-1 mb-3">
           <StarRating rating={parking.calificacion} size="sm" />

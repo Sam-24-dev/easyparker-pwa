@@ -18,7 +18,7 @@ interface ParkingContextType {
   addParking: (parking: Omit<IParking, 'id'>) => IParking;
   updateParking: (id: number, data: Partial<IParking>) => void;
   removeParking: (id: number) => void;
-  claimParking: (staticParkingId: number) => IParking | null;
+  claimParking: (staticParkingId: number, ownerName?: string) => IParking | null;
   userParkings: IParking[];
   claimedParkingIds: number[];
 }
@@ -85,9 +85,22 @@ const saveClaimedParkingIds = (ids: number[]) => {
   }
 };
 
-// Leer estado de parqueos reclamados (activo/pausado)
+// Leer estado de parqueos reclamados (activo/pausado + datos editados)
 const CLAIMED_STATE_KEY = 'easyparker:claimed-state';
-const readClaimedState = (): Record<number, { isActive: boolean }> => {
+
+interface ClaimedParkingState {
+  isActive: boolean;
+  ownerName?: string;
+  descripcion?: string;
+  precio?: number;
+  plazasLibres?: number;
+  horario?: string;
+  seguridad?: string[];
+  accesiblePMR?: boolean;
+  vehiculosPermitidos?: string[];
+}
+
+const readClaimedState = (): Record<number, ClaimedParkingState> => {
   try {
     const stored = localStorage.getItem(CLAIMED_STATE_KEY);
     if (stored) {
@@ -99,7 +112,7 @@ const readClaimedState = (): Record<number, { isActive: boolean }> => {
   return {};
 };
 
-const saveClaimedState = (state: Record<number, { isActive: boolean }>) => {
+const saveClaimedState = (state: Record<number, ClaimedParkingState>) => {
   try {
     localStorage.setItem(CLAIMED_STATE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -114,17 +127,30 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
   // IDs de parqueos estáticos reclamados por el usuario
   const [claimedParkingIds, setClaimedParkingIds] = useState<number[]>(() => readClaimedParkingIds());
   
-  // Estado de parqueos reclamados (activo/pausado)
-  const [claimedState, setClaimedState] = useState<Record<number, { isActive: boolean }>>(() => readClaimedState());
+  // Estado de parqueos reclamados (activo/pausado + ownerName + datos editados)
+  const [claimedState, setClaimedState] = useState<Record<number, ClaimedParkingState>>(() => readClaimedState());
 
   // Obtener los parqueos reclamados como objetos IParking con su estado
   const claimedParkings = staticParkings
     .filter(p => claimedParkingIds.includes(p.id))
-    .map(p => ({
-      ...p,
-      claimedBy: 'Propietario',
-      isActive: claimedState[p.id]?.isActive !== false, // Por defecto activos
-    }));
+    .map(p => {
+      const state = claimedState[p.id] || {};
+      return {
+        ...p,
+        claimedBy: 'Propietario',
+        isActive: state.isActive !== false, // Por defecto activos
+        ownerName: state.ownerName || 'Propietario',
+        verificado: true, // Reclamados pasan por verificación
+        // Campos editables
+        descripcion: state.descripcion ?? p.descripcion,
+        precio: state.precio ?? p.precio,
+        plazasLibres: state.plazasLibres ?? p.plazasLibres,
+        horario: state.horario ?? p.horario,
+        seguridad: state.seguridad ?? p.seguridad,
+        accesiblePMR: state.accesiblePMR ?? p.accesiblePMR,
+        vehiculosPermitidos: state.vehiculosPermitidos ?? p.vehiculosPermitidos,
+      };
+    });
 
   // Combinar parqueos estáticos (SIN los reclamados) + parqueos del usuario
   // Los reclamados NO se muestran como estáticos normales, solo aparecen en "Mis Propiedades"
@@ -149,11 +175,24 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
     // Recalcular claimedParkings con el estado actual
     const currentClaimedParkings = staticParkings
       .filter(p => claimedParkingIds.includes(p.id))
-      .map(p => ({
-        ...p,
-        claimedBy: 'Propietario',
-        isActive: claimedState[p.id]?.isActive !== false,
-      }));
+      .map(p => {
+        const state = claimedState[p.id] || {};
+        return {
+          ...p,
+          claimedBy: 'Propietario',
+          isActive: state.isActive !== false,
+          ownerName: state.ownerName || 'Propietario',
+          verificado: true,
+          // Campos editables
+          descripcion: state.descripcion ?? p.descripcion,
+          precio: state.precio ?? p.precio,
+          plazasLibres: state.plazasLibres ?? p.plazasLibres,
+          horario: state.horario ?? p.horario,
+          seguridad: state.seguridad ?? p.seguridad,
+          accesiblePMR: state.accesiblePMR ?? p.accesiblePMR,
+          vehiculosPermitidos: state.vehiculosPermitidos ?? p.vehiculosPermitidos,
+        };
+      });
 
     const combined = [
       ...staticParkings
@@ -279,13 +318,21 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
   const updateParking = useCallback((id: number, data: Partial<IParking>) => {
     // Si es un parqueo reclamado (ID está en claimedParkingIds)
     if (claimedParkingIds.includes(id)) {
-      // Actualizar el estado del parqueo reclamado
+      // Actualizar el estado del parqueo reclamado con todos los campos editables
       setClaimedState(prev => {
         const updated = {
           ...prev,
           [id]: {
             ...prev[id],
             isActive: data.isActive ?? prev[id]?.isActive ?? true,
+            ownerName: data.ownerName ?? prev[id]?.ownerName,
+            descripcion: data.descripcion ?? prev[id]?.descripcion,
+            precio: data.precio ?? prev[id]?.precio,
+            plazasLibres: data.plazasLibres ?? prev[id]?.plazasLibres,
+            horario: data.horario ?? prev[id]?.horario,
+            seguridad: data.seguridad ?? prev[id]?.seguridad,
+            accesiblePMR: data.accesiblePMR ?? prev[id]?.accesiblePMR,
+            vehiculosPermitidos: data.vehiculosPermitidos ?? prev[id]?.vehiculosPermitidos,
           }
         };
         saveClaimedState(updated);
@@ -332,7 +379,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
   }, [claimedParkingIds]);
 
   // Reclamar un parqueo estático existente (solo guardar referencia, no duplicar)
-  const claimParking = useCallback((staticParkingId: number): IParking | null => {
+  const claimParking = useCallback((staticParkingId: number, ownerName?: string): IParking | null => {
     // Buscar el parqueo estático
     const staticParking = staticParkings.find(p => p.id === staticParkingId);
     if (!staticParking) return null;
@@ -347,9 +394,9 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    // Inicializar estado como activo
+    // Inicializar estado como activo con ownerName
     setClaimedState(prev => {
-      const updated = { ...prev, [staticParkingId]: { isActive: true } };
+      const updated = { ...prev, [staticParkingId]: { isActive: true, ownerName: ownerName || 'Propietario' } };
       saveClaimedState(updated);
       return updated;
     });
@@ -359,6 +406,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
       ...staticParking,
       claimedBy: 'Propietario',
       isActive: true,
+      ownerName: ownerName || 'Propietario',
     };
   }, [claimedParkingIds]);
 
