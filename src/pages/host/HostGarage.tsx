@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { HostLayout } from '../../components/host/HostLayout';
 import { useParkingContext } from '../../context/ParkingContext';
 import { useAuth } from '../../context/AuthContext';
+import { useHost } from '../../context/HostContext';
 import { IParking, TipoVehiculo } from '../../types';
 import { GARAGE_PLACEHOLDER_PHOTOS, AVAILABLE_ZONES, detectZoneFromCoords } from '../../data/hostMock';
 import { parkings as staticParkings } from '../../data/parkings';
-import { 
-  Camera, ShieldCheck, Warehouse, Save, Clock, Car, Bike, 
-  Accessibility, DollarSign, Users, CheckCircle, Zap, MapPin, 
+import {
+  Camera, ShieldCheck, Warehouse, Save, Clock, Car, Bike,
+  Accessibility, DollarSign, Users, CheckCircle, Zap, MapPin,
   Navigation, Image, Plus, Edit2, Trash2, Eye, ChevronRight,
   Search, X, AlertTriangle, Power, Pause, Building2, Upload, FileText, CreditCard
 } from 'lucide-react';
@@ -41,15 +42,15 @@ function MapUpdater({ lat, lng }: { lat: number; lng: number }) {
 }
 
 // Componente de Card de Garaje
-function GarageCard({ 
-  garage, 
-  onEdit, 
-  onDelete, 
-  onToggleActive, 
-  onView 
-}: { 
-  garage: IParking; 
-  onEdit: () => void; 
+function GarageCard({
+  garage,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  onView
+}: {
+  garage: IParking;
+  onEdit: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
   onView: () => void;
@@ -62,23 +63,21 @@ function GarageCard({
       {/* Imagen */}
       <div className="relative h-32">
         <img src={garage.foto} alt={garage.nombre} className="w-full h-full object-cover" />
-        
+
         {/* Badge de estado */}
-        <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-          isVerified 
-            ? 'bg-emerald-100 text-emerald-700' 
-            : 'bg-amber-100 text-amber-700'
-        }`}>
+        <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${isVerified
+          ? 'bg-emerald-100 text-emerald-700'
+          : 'bg-amber-100 text-amber-700'
+          }`}>
           <span className={`w-2 h-2 rounded-full ${isVerified ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           {isVerified ? 'Verificado' : 'Pendiente'}
         </div>
 
         {/* Badge activo/pausado */}
-        <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
-          isActive 
-            ? 'bg-emerald-500 text-white' 
-            : 'bg-slate-400 text-white'
-        }`}>
+        <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${isActive
+          ? 'bg-emerald-500 text-white'
+          : 'bg-slate-400 text-white'
+          }`}>
           {isActive ? 'Activo' : 'Pausado'}
         </div>
       </div>
@@ -87,34 +86,33 @@ function GarageCard({
       <div className="p-3">
         <h3 className="font-semibold text-slate-800 truncate">{garage.nombre}</h3>
         <p className="text-sm text-slate-500">${garage.precio.toFixed(2)}/hora • {garage.plazasLibres} plazas</p>
-        
+
         {/* Acciones */}
         <div className="flex gap-2 mt-3">
-          <button 
+          <button
             onClick={onToggleActive}
-            className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
-              isActive 
-                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' 
-                : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-            }`}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors ${isActive
+              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+              }`}
           >
             {isActive ? <><Pause size={14} /> Pausar</> : <><Power size={14} /> Activar</>}
           </button>
-          <button 
+          <button
             onClick={onView}
             className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
             title="Ver como conductor"
           >
             <Eye size={14} />
           </button>
-          <button 
+          <button
             onClick={onEdit}
             className="p-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
             title="Editar"
           >
             <Edit2 size={14} />
           </button>
-          <button 
+          <button
             onClick={onDelete}
             className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
             title="Eliminar"
@@ -130,18 +128,16 @@ function GarageCard({
 // Componente de Card "Agregar Nuevo"
 function AddGarageCard({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex-shrink-0 w-72 h-56 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-colors ${
-        disabled 
-          ? 'border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed' 
-          : 'border-emerald-300 bg-emerald-50 text-emerald-600 hover:border-emerald-400 hover:bg-emerald-100'
-      }`}
+      className={`flex-shrink-0 w-72 h-56 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-colors ${disabled
+        ? 'border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed'
+        : 'border-emerald-300 bg-emerald-50 text-emerald-600 hover:border-emerald-400 hover:bg-emerald-100'
+        }`}
     >
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-        disabled ? 'bg-slate-200' : 'bg-emerald-200'
-      }`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${disabled ? 'bg-slate-200' : 'bg-emerald-200'
+        }`}>
         <Plus size={24} />
       </div>
       <span className="font-medium">Agregar Garaje</span>
@@ -156,10 +152,11 @@ export default function HostGarage() {
   const navigate = useNavigate();
   const { addParking, updateParking, removeParking, claimParking, userParkings } = useParkingContext();
   const { user } = useAuth();
-  
+  const { updateCompletedRequestsGarage } = useHost();
+
   // Obtener nombre del usuario o usar fallback
   const ownerDisplayName = user?.nombre || 'Propietario';
-  
+
   // Estados principales
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -167,18 +164,18 @@ export default function HostGarage() {
   const [showPhotoSelector, setShowPhotoSelector] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingGarage, setEditingGarage] = useState<IParking | null>(null);
-  
+
   // Estados de modales
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [garageToDelete, setGarageToDelete] = useState<IParking | null>(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [parkingToClaim, setParkingToClaim] = useState<IParking | null>(null);
-  
+
   // Estados de verificación para reclamar
   const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
   const [cedulaUploaded, setCedulaUploaded] = useState(false);
   const [documentUploaded, setDocumentUploaded] = useState(false);
-  
+
   // Estado de autocompletado
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -211,10 +208,12 @@ export default function HostGarage() {
     const claimedIds = userParkings
       .filter(p => p.claimedBy !== undefined)
       .map(p => p.id);
-    
+
     return staticParkings.filter(p => {
       // No incluir los ya reclamados
       if (claimedIds.includes(p.id)) return false;
+      // No incluir los que ya tienen dueño hardcodeado
+      if (p.ownerId) return false;
       // Filtrar por búsqueda
       if (searchQuery.trim()) {
         return p.nombre.toLowerCase().includes(searchQuery.toLowerCase());
@@ -263,7 +262,7 @@ export default function HostGarage() {
     setFormData({
       ...garage,
     });
-    
+
     // Parsear horario
     if (garage.horario === '24 horas') {
       setIs24h(true);
@@ -275,7 +274,7 @@ export default function HostGarage() {
         setEndTime(parts[1]);
       }
     }
-    
+
     setSearchQuery(garage.nombre);
     setShowForm(true);
   };
@@ -322,6 +321,8 @@ export default function HostGarage() {
       // Pasar el ownerName al reclamar
       const claimed = claimParking(parkingToClaim.id, ownerDisplayName);
       if (claimed) {
+        // Actualizar solicitudes completadas con el nombre del garaje reclamado
+        updateCompletedRequestsGarage(parkingToClaim.id, parkingToClaim.nombre);
         showToastMessage('¡Parqueo verificado exitosamente!');
       } else {
         showToastMessage('No se pudo verificar el parqueo');
@@ -344,22 +345,22 @@ export default function HostGarage() {
     }
 
     setIsLocating(true);
-    
+
     // Primero intentar con baja precisión (más rápido)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const detectedZone = detectZoneFromCoords(latitude, longitude);
-        
+
         setFormData(prev => ({
           ...prev,
           lat: latitude,
           lng: longitude,
           zonaId: detectedZone || prev.zonaId,
         }));
-        
+
         setIsLocating(false);
-        
+
         if (detectedZone) {
           const zoneName = AVAILABLE_ZONES.find(z => z.id === detectedZone)?.name;
           showToastMessage(`Zona detectada: ${zoneName}`);
@@ -374,16 +375,16 @@ export default function HostGarage() {
           (position) => {
             const { latitude, longitude } = position.coords;
             const detectedZone = detectZoneFromCoords(latitude, longitude);
-            
+
             setFormData(prev => ({
               ...prev,
               lat: latitude,
               lng: longitude,
               zonaId: detectedZone || prev.zonaId,
             }));
-            
+
             setIsLocating(false);
-            
+
             if (detectedZone) {
               const zoneName = AVAILABLE_ZONES.find(z => z.id === detectedZone)?.name;
               showToastMessage(`Zona detectada: ${zoneName}`);
@@ -447,7 +448,7 @@ export default function HostGarage() {
     }
 
     const finalSchedule = is24h ? '24 horas' : `${startTime} - ${endTime}`;
-    
+
     if (editingGarage) {
       // Actualizar existente
       updateParking(editingGarage.id, {
@@ -490,10 +491,12 @@ export default function HostGarage() {
         ownerName: ownerDisplayName, // Nombre del dueño real
       };
 
-      addParking(newParking);
+      const createdParking = addParking(newParking);
+      // Actualizar solicitudes completadas con el nombre del nuevo garaje
+      updateCompletedRequestsGarage(createdParking.id, createdParking.nombre);
       showToastMessage('Garaje creado exitosamente');
     }
-    
+
     setTimeout(() => {
       resetForm();
       setShowForm(false);
@@ -512,8 +515,8 @@ export default function HostGarage() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-emerald-900">Mi Garaje</h1>
         <p className="text-sm text-slate-500">
-          {userParkings.length === 0 
-            ? 'Publica o reclama tu primer espacio' 
+          {userParkings.length === 0
+            ? 'Publica o reclama tu primer espacio'
             : `${userParkings.length}/${MAX_GARAGES} propiedades`}
         </p>
       </div>
@@ -525,7 +528,7 @@ export default function HostGarage() {
             <Building2 size={16} className="text-emerald-600" />
             Mis Propiedades
           </h2>
-          
+
           {/* Scroll horizontal de cards */}
           <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
             {userParkings.map((garage) => (
@@ -538,10 +541,10 @@ export default function HostGarage() {
                 onView={() => handleViewAsDriver(garage)}
               />
             ))}
-            
+
             {/* Card de agregar nuevo */}
-            <AddGarageCard 
-              onClick={handleNewGarage} 
+            <AddGarageCard
+              onClick={handleNewGarage}
               disabled={userParkings.length >= MAX_GARAGES}
             />
           </div>
@@ -558,7 +561,7 @@ export default function HostGarage() {
           <p className="text-xs text-slate-500 mb-3">
             ¿Tu parqueo ya está en EasyParker? Búscalo y reclámalo como tuyo.
           </p>
-          
+
           <div className="relative">
             <input
               type="text"
@@ -572,7 +575,7 @@ export default function HostGarage() {
               className="w-full p-3 pl-10 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
             />
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            
+
             {searchQuery && (
               <button
                 onClick={() => {
@@ -594,9 +597,9 @@ export default function HostGarage() {
                     onClick={() => handleSelectSuggestion(parking)}
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-50 transition-colors border-b border-slate-100 last:border-0"
                   >
-                    <img 
-                      src={parking.foto} 
-                      alt={parking.nombre} 
+                    <img
+                      src={parking.foto}
+                      alt={parking.nombre}
                       className="w-12 h-12 rounded-lg object-cover"
                     />
                     <div className="flex-1 text-left">
@@ -634,7 +637,7 @@ export default function HostGarage() {
             <Plus size={24} />
             <span className="font-medium">Crear Nuevo</span>
           </button>
-          
+
           <div className="bg-slate-100 py-4 px-4 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-500">
             <Search size={24} />
             <span className="font-medium text-sm text-center">O busca arriba para reclamar</span>
@@ -667,8 +670,8 @@ export default function HostGarage() {
               <Image size={18} className="text-emerald-600" />
               Foto del Garaje
             </h3>
-            
-            <div 
+
+            <div
               className="relative h-40 rounded-2xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 transition-colors"
               onClick={() => setShowPhotoSelector(true)}
             >
@@ -694,7 +697,7 @@ export default function HostGarage() {
               <div className="bg-white w-full max-w-md rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-lg text-slate-800">Elige una foto</h3>
-                  <button 
+                  <button
                     onClick={() => setShowPhotoSelector(false)}
                     className="text-slate-400 hover:text-slate-600 text-xl"
                   >
@@ -709,9 +712,8 @@ export default function HostGarage() {
                         setFormData(prev => ({ ...prev, foto: photo }));
                         setShowPhotoSelector(false);
                       }}
-                      className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                        formData.foto === photo ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-transparent'
-                      }`}
+                      className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${formData.foto === photo ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-transparent'
+                        }`}
                     >
                       <img src={photo} alt={`Garaje ${index + 1}`} className="w-full h-full object-cover" />
                     </button>
@@ -727,7 +729,7 @@ export default function HostGarage() {
               <MapPin size={18} className="text-emerald-600" />
               Ubicación
             </h3>
-            
+
             {/* Mini Mapa Preview */}
             <div className="h-40 rounded-xl overflow-hidden border border-slate-200">
               {hasValidLocation ? (
@@ -811,7 +813,7 @@ export default function HostGarage() {
               <Warehouse size={18} className="text-emerald-600" />
               Información Básica
             </h3>
-            
+
             {/* Nombre */}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Nombre del Garaje</label>
@@ -889,7 +891,7 @@ export default function HostGarage() {
               <Clock size={18} className="text-emerald-600" />
               Horario de Atención
             </h3>
-            
+
             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
               <span className="text-sm font-medium text-slate-700">Atención 24 horas</span>
               <button
@@ -930,69 +932,63 @@ export default function HostGarage() {
               <ShieldCheck size={18} className="text-emerald-600" />
               Características
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-3">
               {/* Autos */}
-              <button 
+              <button
                 onClick={() => toggleVehicle('Auto')}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  hasVehicle('Auto') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${hasVehicle('Auto') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <Car size={24} />
                 <span className="text-xs font-medium">Autos</span>
               </button>
 
               {/* Motos */}
-              <button 
+              <button
                 onClick={() => toggleVehicle('Moto')}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  hasVehicle('Moto') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${hasVehicle('Moto') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <Bike size={24} />
                 <span className="text-xs font-medium">Motos</span>
               </button>
 
               {/* Guardia 24/7 */}
-              <button 
+              <button
                 onClick={() => toggleSecurity('Guardia 24h')}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  hasSecurity('Guardia 24h') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${hasSecurity('Guardia 24h') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <ShieldCheck size={24} />
                 <span className="text-xs font-medium">Seguridad 24/7</span>
               </button>
 
               {/* Cámaras */}
-              <button 
+              <button
                 onClick={() => toggleSecurity('Cámaras')}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  hasSecurity('Cámaras') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${hasSecurity('Cámaras') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <Camera size={24} />
                 <span className="text-xs font-medium">Cámaras</span>
               </button>
 
               {/* PMR */}
-              <button 
+              <button
                 onClick={() => setFormData(prev => ({ ...prev, accesiblePMR: !prev.accesiblePMR }))}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  formData.accesiblePMR ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${formData.accesiblePMR ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <Accessibility size={24} />
                 <span className="text-xs font-medium">Acceso PMR</span>
               </button>
 
               {/* Techo */}
-              <button 
+              <button
                 onClick={() => toggleSecurity('Techo')}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                  hasSecurity('Techo') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
-                }`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${hasSecurity('Techo') ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400'
+                  }`}
               >
                 <Warehouse size={24} />
                 <span className="text-xs font-medium">Zona techada</span>
@@ -1007,7 +1003,7 @@ export default function HostGarage() {
           </div>
 
           {/* Botón Guardar */}
-          <button 
+          <button
             onClick={handleSave}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 font-semibold transition-colors"
           >
@@ -1030,11 +1026,11 @@ export default function HostGarage() {
                 <p className="text-sm text-slate-500">Esta acción no se puede deshacer</p>
               </div>
             </div>
-            
+
             <p className="text-slate-600 mb-6">
               ¿Estás seguro que deseas eliminar <strong>"{garageToDelete.nombre}"</strong>?
             </p>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -1062,8 +1058,8 @@ export default function HostGarage() {
           <div className="bg-white w-full max-w-md rounded-2xl p-6 animate-in fade-in zoom-in max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="text-center mb-4">
-              <img 
-                src={parkingToClaim.foto} 
+              <img
+                src={parkingToClaim.foto}
                 alt={parkingToClaim.nombre}
                 className="w-20 h-20 rounded-2xl object-cover mx-auto mb-3"
               />
@@ -1073,16 +1069,14 @@ export default function HostGarage() {
 
             {/* Indicador de pasos */}
             <div className="flex items-center justify-center gap-2 mb-6">
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                verificationStep === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500 text-white'
-              }`}>
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${verificationStep === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500 text-white'
+                }`}>
                 <CreditCard size={14} />
                 <span>1. Cédula</span>
               </div>
               <ChevronRight size={16} className="text-slate-300" />
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                verificationStep === 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-              }`}>
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${verificationStep === 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                }`}>
                 <FileText size={14} />
                 <span>2. Documento</span>
               </div>
@@ -1096,14 +1090,13 @@ export default function HostGarage() {
                     <strong>Paso 1:</strong> Sube una foto de tu cédula de identidad para verificar tu identidad.
                   </p>
                 </div>
-                
-                <div 
+
+                <div
                   onClick={() => setCedulaUploaded(true)}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                    cedulaUploaded 
-                      ? 'border-emerald-300 bg-emerald-50' 
-                      : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-                  }`}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${cedulaUploaded
+                    ? 'border-emerald-300 bg-emerald-50'
+                    : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                    }`}
                 >
                   {cedulaUploaded ? (
                     <div className="flex flex-col items-center gap-2">
@@ -1138,11 +1131,10 @@ export default function HostGarage() {
                   <button
                     onClick={() => setVerificationStep(2)}
                     disabled={!cedulaUploaded}
-                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
-                      cedulaUploaded 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${cedulaUploaded
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     Siguiente
                     <ChevronRight size={18} />
@@ -1159,14 +1151,13 @@ export default function HostGarage() {
                     <strong>Paso 2:</strong> Sube un documento que pruebe la propiedad (planilla de luz, escritura, contrato de arrendamiento).
                   </p>
                 </div>
-                
-                <div 
+
+                <div
                   onClick={() => setDocumentUploaded(true)}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                    documentUploaded 
-                      ? 'border-emerald-300 bg-emerald-50' 
-                      : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-                  }`}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${documentUploaded
+                    ? 'border-emerald-300 bg-emerald-50'
+                    : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                    }`}
                 >
                   {documentUploaded ? (
                     <div className="flex flex-col items-center gap-2">
@@ -1201,11 +1192,10 @@ export default function HostGarage() {
                   <button
                     onClick={handleConfirmClaim}
                     disabled={!documentUploaded}
-                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
-                      documentUploaded 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`flex-1 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${documentUploaded
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     <ShieldCheck size={18} />
                     Verificar

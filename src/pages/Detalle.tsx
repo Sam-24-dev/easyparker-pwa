@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { StarRating } from '../components/ui/StarRating';
 import { ReviewList } from '../components/reviews/ReviewList';
 import { useParkingContext } from '../context/ParkingContext';
+import { useRating } from '../context/RatingContext';
 import { getReviewsByParkingId } from '../data/reviews';
 import { FavoriteButton } from '../components/ui/FavoriteButton';
 import {
@@ -32,14 +33,32 @@ export function Detalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getParkingById } = useParkingContext();
+  const { getRatingsByGarageId } = useRating();
 
   const parking = getParkingById(Number(id));
 
-  // Todos los hooks deben estar antes de cualquier return condicional
+  // Combinar reseñas estáticas con reseñas dinámicas del RatingContext
   const reviews = useMemo(() => {
     if (!parking) return [];
-    return getReviewsByParkingId(parking.verificado);
-  }, [parking]);
+
+    // Reseñas estáticas (mock data)
+    const staticReviews = getReviewsByParkingId(parking.verificado);
+
+    // Reseñas dinámicas del RatingContext
+    const dynamicRatings = getRatingsByGarageId(parking.id);
+
+    // Convertir ratings dinámicos a formato de review (IReview)
+    const dynamicReviews = dynamicRatings.map(rating => ({
+      usuario: rating.fromUserName || 'Usuario',
+      avatar: rating.fromUserPhoto || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+      calificacion: rating.estrellas,
+      comentario: rating.comentario || 'Excelente experiencia.',
+      fecha: rating.fecha,
+    }));
+
+    // Combinar: primero las dinámicas (más recientes), luego las estáticas
+    return [...dynamicReviews, ...staticReviews];
+  }, [parking, getRatingsByGarageId]);
 
   const [availability, setAvailability] = useState(parking?.plazasLibres ?? 0);
   const [lastUpdateAt, setLastUpdateAt] = useState(() => Date.now());
@@ -190,8 +209,8 @@ export function Detalle() {
   return (
     <Layout>
       <div className="space-y-8 pb-24">
-        <button 
-          onClick={() => navigate(-1)} 
+        <button
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-slate-500 hover:text-[#0B1F60] transition-colors font-medium"
         >
           <ArrowLeft size={20} />
@@ -201,11 +220,11 @@ export function Detalle() {
         <section className="space-y-4">
           {/* Imagen única sin galería ni navegación */}
           <div className="relative rounded-3xl overflow-hidden bg-slate-100 h-64">
-            <img 
-              src={parking.foto} 
-              alt={parking.nombre} 
-              loading="lazy" 
-              className="w-full h-full object-cover bg-slate-200" 
+            <img
+              src={parking.foto}
+              alt={parking.nombre}
+              loading="lazy"
+              className="w-full h-full object-cover bg-slate-200"
             />
             {parking.verificado && (
               <div className="absolute top-4 right-4 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-medium">
@@ -220,22 +239,25 @@ export function Detalle() {
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-[0.3em]">Buscar un estacionamiento</p>
               <h1 className="text-3xl font-semibold text-slate-900 mt-1">{parking.nombre}</h1>
-              
-              {/* Owner info */}
-              {parking.ownerName && (
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+
+              {/* Owner info - Clickable to profile */}
+              {parking.ownerId && parking.ownerName && (
+                <button
+                  onClick={() => navigate(`/perfil/${parking.ownerId}`)}
+                  className="flex items-center gap-2 mt-2 p-2 -ml-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden">
                     {parking.ownerPhoto ? (
                       <img src={parking.ownerPhoto} alt={parking.ownerName} className="w-8 h-8 rounded-full object-cover" />
                     ) : (
                       <User size={16} className="text-emerald-600" />
                     )}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-slate-700">{parking.ownerName}</span>
-                    <span className="text-xs text-slate-500">Propietario verificado</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-medium text-slate-700 hover:text-blue-600">{parking.ownerName}</span>
+                    <span className="text-xs text-slate-500">Ver perfil del propietario</span>
                   </div>
-                </div>
+                </button>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -337,9 +359,8 @@ export function Detalle() {
               return (
                 <div
                   key={feature.label}
-                  className={`rounded-2xl border px-4 py-3 flex items-center gap-3 transition ${
-                    feature.active ? 'border-primary/40 bg-primary/5 text-primary' : 'border-slate-200 text-slate-500'
-                  }`}
+                  className={`rounded-2xl border px-4 py-3 flex items-center gap-3 transition ${feature.active ? 'border-primary/40 bg-primary/5 text-primary' : 'border-slate-200 text-slate-500'
+                    }`}
                   title={feature.tooltip}
                 >
                   <span className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${feature.active ? 'bg-white' : 'bg-slate-100'}`}>

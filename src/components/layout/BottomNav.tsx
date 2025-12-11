@@ -1,11 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Search, BookmarkCheck } from 'lucide-react';
+import { Home, Search, BookmarkCheck, User } from 'lucide-react';
 import { useReservaContext } from '../../context/ReservaContext';
 
 const navItems = [
   { to: '/home', label: 'Inicio', icon: Home },
   { to: '/buscar', label: 'Buscar', icon: Search },
   { to: '/mis-reservas', label: 'Reservas', icon: BookmarkCheck },
+  { to: '/perfil', label: 'Perfil', icon: User },
 ];
 
 export function BottomNav() {
@@ -36,16 +37,14 @@ export function BottomNav() {
               key={to}
               type="button"
               onClick={() => handleNavClick(to)}
-              className={`relative flex flex-col items-center gap-1 text-xs font-semibold transition-all ${
-                isActive(to)
+              className={`relative flex flex-col items-center gap-1 text-xs font-semibold transition-all ${isActive(to)
                   ? 'text-white'
                   : 'text-white/60 hover:text-white/80'
-              }`}
+                }`}
             >
               <span
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl ${
-                  isActive(to) ? 'bg-white/15 backdrop-blur text-white shadow-inner' : ''
-                }`}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl ${isActive(to) ? 'bg-white/15 backdrop-blur text-white shadow-inner' : ''
+                  }`}
               >
                 <div className="relative">
                   <Icon size={20} />

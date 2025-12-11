@@ -30,13 +30,13 @@ export function Home() {
   console.log('Home - Roles:', user?.roles);
 
   const firstName = user?.nombre?.split(' ')[0] || 'Usuario';
-  
+
   // Obtener los 3 parqueos más cercanos para el mini-mapa
   const nearbyParkings = allParkings
     .filter(p => p.plazasLibres > 0)
     .sort((a, b) => a.distancia - b.distancia)
     .slice(0, 3);
-  
+
   const availableParkingsCount = allParkings.filter(p => p.plazasLibres > 0).length;
 
   // Obtener los últimos 2 favoritos
@@ -77,7 +77,7 @@ export function Home() {
       <div className="space-y-5">
         {/* BANNER: Conviértete en Anfitrión - Solo visible si NO es host */}
         {user && !user.roles?.host && (
-          <div 
+          <div
             className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-xl text-white shadow-lg cursor-pointer hover:from-purple-700 hover:to-blue-700 transition-all"
             onClick={handleBecomeHost}
           >
@@ -131,7 +131,7 @@ export function Home() {
           <article className="rounded-2xl bg-gradient-to-b from-[#0C1F63] to-[#1C2F74] text-white p-5 relative overflow-hidden">
             <p className="text-sm text-white/70">Parqueos cerca de</p>
             <h2 className="text-xl font-semibold">Guayaquil</h2>
-            
+
             {/* Mini-mapa con marcadores */}
             <div className="mt-4 h-[150px] rounded-2xl overflow-hidden border border-white/20">
               <MapContainer
@@ -155,11 +155,11 @@ export function Home() {
                 ))}
               </MapContainer>
             </div>
-            
+
             <p className="mt-3 text-sm text-white/80">
               {availableParkingsCount} parqueos disponibles
             </p>
-            
+
             <button
               onClick={() => navigate('/buscar')}
               className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-white/90 hover:text-white transition"

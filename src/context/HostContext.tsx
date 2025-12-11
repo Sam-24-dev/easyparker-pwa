@@ -14,6 +14,7 @@ export interface HostRequest {
   parkingId: number; // ID del garaje al que pertenece la solicitud
   parkingName: string; // Nombre del garaje
   parkingPhoto?: string; // Foto del garaje
+  driverId?: string; // ID del conductor para vincular con perfil
   driverName: string;
   driverImage?: string;
   driverVerified: boolean; // Identidad verificada
@@ -44,7 +45,7 @@ export interface Transaction {
 // Mock Data
 const mockHostStats: HostStats = {
   earnings: 125.50,
-  activeReservations: 2,
+  activeReservations: 0, // 0 porque las solicitudes mock son completadas, no en curso
   rating: 4.8,
   totalViews: 45
 };
@@ -72,7 +73,7 @@ const generateMockTransactions = (): Transaction[] => {
   const transactions: Transaction[] = [];
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
-  
+
   // Datos mock por día (últimos 7 días)
   const dailyData = [
     { day: 0, earnings: [12.50, 8.00] },
@@ -83,17 +84,17 @@ const generateMockTransactions = (): Transaction[] => {
     { day: 5, earnings: [22.00, 5.00] },
     { day: 6, earnings: [14.00] },
   ];
-  
+
   const names = ['María López', 'Carlos Ruiz', 'Ana Torres', 'Luis Gómez', 'Juan Pérez', 'Sofía Vargas'];
   let txId = 1;
-  
+
   dailyData.forEach(({ day, earnings }) => {
     earnings.forEach((gross, idx) => {
       const commission = gross * 0.10;
       const net = gross - commission;
       const date = new Date(now - day * dayMs);
       date.setHours(9 + idx * 3, Math.floor(Math.random() * 60));
-      
+
       transactions.push({
         id: `tx-${txId++}`,
         type: 'earning',
@@ -109,7 +110,7 @@ const generateMockTransactions = (): Transaction[] => {
       });
     });
   });
-  
+
   // Agregar un retiro
   transactions.push({
     id: `tx-${txId++}`,
@@ -120,12 +121,45 @@ const generateMockTransactions = (): Transaction[] => {
     status: 'completed',
     description: 'Retiro a cuenta bancaria',
   });
-  
+
   return transactions.sort((a, b) => b.timestamp - a.timestamp);
 };
 
-// Inicialmente vacío - las solicitudes llegan solo cuando está "Disponible"
-const mockHostRequests: HostRequest[] = [];
+// Inicialmente con 2 solicitudes COMPLETADAS para probar calificación/reporte de conductores
+const mockHostRequests: HostRequest[] = [
+  {
+    id: 'req-completed-demo-1',
+    parkingId: 999, // ID del garaje mock - se actualizará al crear/reclamar garaje
+    parkingName: 'Mi Garaje', // Se actualizará al crear/reclamar garaje
+    driverId: 'user-conductor-top', // ID correcto de Carlos Mendoza en usersMock
+    driverName: 'Carlos Mendoza',
+    driverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face', // Foto original correcta
+    driverVerified: true,
+    vehicleModel: 'Chevrolet Aveo',
+    vehiclePlate: 'GBA-1234',
+    startTime: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // Hace 3 horas
+    endTime: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // Terminó hace 1 hora
+    totalPrice: 5.00,
+    status: 'completed',
+    timestamp: 'Hace 3 horas'
+  },
+  {
+    id: 'req-completed-demo-2',
+    parkingId: 999,
+    parkingName: 'Mi Garaje',
+    driverId: 'driver-top-2', // ID correcto de Andrea López en usersMock
+    driverName: 'Andrea López',
+    driverImage: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face', // Foto correcta de Andrea
+    driverVerified: true,
+    vehicleModel: 'Toyota Yaris',
+    vehiclePlate: 'GEF-5678',
+    startTime: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // Hace 5 horas
+    endTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // Terminó hace 2 horas
+    totalPrice: 6.00,
+    status: 'completed',
+    timestamp: 'Hace 5 horas'
+  }
+];
 
 const mockTransactions: Transaction[] = generateMockTransactions();
 
@@ -134,11 +168,11 @@ interface HostContextType {
   // Estado del modo
   isHostMode: boolean;
   toggleHostMode: () => void;
-  
+
   // Estado online/offline
   isOnline: boolean;
   toggleOnline: () => void;
-  
+
   // Datos
   stats: HostStats;
   garage: Partial<IParking>;
@@ -146,7 +180,7 @@ interface HostContextType {
   transactions: Transaction[];
   historyRequests: HostRequest[]; // Solicitudes rechazadas (historial)
   balance: number; // Balance calculado
-  
+
   // Estadísticas del día
   todayStats: {
     requests: number;
@@ -154,25 +188,71 @@ interface HostContextType {
     earnings: number;
     acceptanceRate: number;
   };
-  
+
   // Acciones
   updateGarage: (data: Partial<IParking>) => void;
   handleRequest: (id: string, action: 'accept' | 'reject') => void;
   addRequest: (request: HostRequest) => void;
   recoverRequest: (id: string) => void; // Recuperar solicitud rechazada
   addTransaction: (transaction: Transaction) => void;
-  generateRequestForParking: (parking: IParking) => HostRequest; // Generar solicitud para un garaje específico
-  
+  generateRequestForParking: (parking: IParking, usedDriverIds?: string[]) => HostRequest | null; // Generar solicitud para un garaje específico
+
   // Para actualizar estado "En curso" -> "Completado"
   updateRequestStatus: (id: string, status: HostRequest['status']) => void;
+
+  // Para actualizar el nombre del garaje en solicitudes completadas cuando se crea/reclama un garaje
+  updateCompletedRequestsGarage: (parkingId: number, parkingName: string) => void;
 }
 
 const HostContext = createContext<HostContextType | undefined>(undefined);
 
-// Nombres y vehículos para generar solicitudes
-const driverNames = [
-  'Juan Pérez', 'María López', 'Carlos Ruiz', 'Ana Torres', 'Luis Gómez',
-  'Sofía Vargas', 'Diego Mendoza', 'Valentina Cruz', 'Andrés Morales', 'Camila Reyes'
+// Conductores mock vinculados a perfiles de usuario (6 únicos: 2 top, 2 normales, 2 nuevos)
+const mockDrivers = [
+  // Top drivers (verificados, muchas reservas)
+  {
+    id: 'user-conductor-top',
+    name: 'Carlos Mendoza',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    verified: true,
+    tier: 'top' as const
+  },
+  {
+    id: 'driver-top-2',
+    name: 'Andrea López',
+    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+    verified: true,
+    tier: 'top' as const
+  },
+  // Normal drivers (verificados, algunas reservas)
+  {
+    id: 'user-test',
+    name: 'Juan Pérez',
+    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    verified: true,
+    tier: 'normal' as const
+  },
+  {
+    id: 'driver-normal-2',
+    name: 'Roberto Silva',
+    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
+    verified: true,
+    tier: 'normal' as const
+  },
+  // New drivers (sin verificar, pocas reservas)
+  {
+    id: 'driver-new-1',
+    name: 'Laura Martínez',
+    photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
+    verified: false,
+    tier: 'new' as const
+  },
+  {
+    id: 'driver-new-2',
+    name: 'Miguel Torres',
+    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
+    verified: false,
+    tier: 'new' as const
+  },
 ];
 
 const vehicles = [
@@ -192,17 +272,17 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [requests, setRequests] = useState<HostRequest[]>(mockHostRequests);
   const [historyRequests, setHistoryRequests] = useState<HostRequest[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
-  
+
   // Ref para vibración
   const lastRequestCountRef = useRef(0);
 
   // Calcular balance (suma de transacciones de tipo earning)
   const balance = transactions
     .filter(t => t.type === 'earning')
-    .reduce((sum, t) => sum + t.amount, 0) 
+    .reduce((sum, t) => sum + t.amount, 0)
     + transactions
-    .filter(t => t.type === 'payout')
-    .reduce((sum, t) => sum + t.amount, 0);
+      .filter(t => t.type === 'payout')
+      .reduce((sum, t) => sum + t.amount, 0);
 
   // Calcular estadísticas del día
   const todayStats = React.useMemo(() => {
@@ -211,12 +291,12 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const reqDate = new Date(r.startTime).toDateString();
       return reqDate === today;
     });
-    
+
     const accepted = todayRequests.filter(r => r.status === 'accepted' || r.status === 'in-progress' || r.status === 'completed').length;
     const earnings = todayRequests
       .filter(r => r.status === 'accepted' || r.status === 'in-progress' || r.status === 'completed')
       .reduce((sum, r) => sum + (r.totalPrice * 0.9), 0); // Ganancia neta (90%)
-    
+
     return {
       requests: todayRequests.length,
       accepted,
@@ -233,26 +313,35 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Generar solicitud para un garaje específico
-  const generateRequestForParking = useCallback((parking: IParking): HostRequest => {
-    const randomName = driverNames[Math.floor(Math.random() * driverNames.length)];
+  // usedDriverIds: IDs de conductores que ya tienen solicitud activa (aceptada o en curso) para ESTE garaje
+  const generateRequestForParking = useCallback((parking: IParking, usedDriverIds: string[] = []): HostRequest | null => {
+    // Filtrar conductores disponibles (que no ya tengan solicitud activa en este garaje)
+    const availableDrivers = mockDrivers.filter(d => !usedDriverIds.includes(d.id));
+
+    // Si no hay conductores disponibles, retornar null
+    if (availableDrivers.length === 0) {
+      return null;
+    }
+
+    const randomDriver = availableDrivers[Math.floor(Math.random() * availableDrivers.length)];
     const randomVehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const randomPlate = `${randomVehicle.plate}-${Math.floor(1000 + Math.random() * 9000)}`;
-    
+
     const now = new Date();
     const duration = Math.floor(Math.random() * 3) + 1; // 1-3 horas
     const endTime = new Date(now.getTime() + duration * 60 * 60 * 1000);
-    
+
     const totalPrice = parseFloat((parking.precio * duration).toFixed(2));
-    
+
     return {
       id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       parkingId: parking.id,
       parkingName: parking.nombre,
       parkingPhoto: parking.foto,
-      driverName: randomName,
-      driverImage: `https://ui-avatars.com/api/?name=${encodeURIComponent(randomName)}&background=random&color=fff`,
-      driverVerified: Math.random() > 0.3, // 70% verificados
+      driverId: randomDriver.id,
+      driverName: randomDriver.name,
+      driverImage: randomDriver.photo,
+      driverVerified: randomDriver.verified,
       vehicleModel: randomVehicle.model,
       vehiclePlate: randomPlate,
       startTime: now.toISOString(),
@@ -265,7 +354,7 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const handleRequest = (id: string, action: 'accept' | 'reject') => {
     const request = requests.find(r => r.id === id);
-    
+
     if (action === 'reject') {
       // Mover a historial con timestamp de rechazo
       if (request) {
@@ -279,9 +368,9 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setRequests(prev => prev.filter(r => r.id !== id));
     } else {
       // Aceptar -> cambiar a "in-progress"
-      setRequests(prev => prev.map(req => 
-        req.id === id 
-          ? { ...req, status: 'in-progress' as const } 
+      setRequests(prev => prev.map(req =>
+        req.id === id
+          ? { ...req, status: 'in-progress' as const }
           : req
       ));
 
@@ -290,7 +379,7 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const grossAmount = request.totalPrice;
         const commission = grossAmount * 0.10;
         const netAmount = grossAmount - commission;
-        
+
         const newTransaction: Transaction = {
           id: `tx-${Date.now()}`,
           type: 'earning',
@@ -304,9 +393,9 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           parkingId: request.parkingId,
           parkingName: request.parkingName,
         };
-        
+
         setTransactions(prev => [newTransaction, ...prev]);
-        
+
         setStats(prev => ({
           ...prev,
           earnings: prev.earnings + netAmount,
@@ -339,7 +428,7 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRequests(prev => prev.map(req =>
       req.id === id ? { ...req, status } : req
     ));
-    
+
     if (status === 'completed') {
       setStats(prev => ({
         ...prev,
@@ -354,6 +443,17 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addTransaction = useCallback((transaction: Transaction) => {
     setTransactions(prev => [transaction, ...prev]);
+  }, []);
+
+  // Actualizar solicitudes completadas con el garaje real cuando se crea/reclama
+  const updateCompletedRequestsGarage = useCallback((parkingId: number, parkingName: string) => {
+    setRequests(prev => prev.map(req => {
+      // Solo actualizar solicitudes con parkingId 999 (el mock genérico)
+      if (req.parkingId === 999 && req.status === 'completed') {
+        return { ...req, parkingId, parkingName };
+      }
+      return req;
+    }));
   }, []);
 
   // Vibración cuando llega nueva solicitud
@@ -399,6 +499,7 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addTransaction,
       generateRequestForParking,
       updateRequestStatus,
+      updateCompletedRequestsGarage,
     }}>
       {children}
     </HostContext.Provider>

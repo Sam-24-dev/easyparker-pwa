@@ -37,7 +37,11 @@ export const parkings: IParking[] = [
     horario: "24 horas",
     vehiculosPermitidos: ["Auto", "Moto"],
     zonaValidada: true,
-    zonaId: 'urdesa'
+    zonaId: 'urdesa',
+    // Propietario asignado
+    ownerId: 'host-premium',
+    ownerName: 'Fernando Reyes',
+    ownerPhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face'
   },
   {
     id: 4,
@@ -75,7 +79,10 @@ export const parkings: IParking[] = [
     horario: "24 horas",
     vehiculosPermitidos: ["Auto"],
     zonaValidada: true,
-    zonaId: 'urdesa'
+    zonaId: 'urdesa',
+    ownerId: 'host-premium',
+    ownerName: 'Fernando Reyes',
+    ownerPhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face'
   },
   {
     id: 7,
@@ -132,7 +139,10 @@ export const parkings: IParking[] = [
     horario: "24 horas",
     vehiculosPermitidos: ["Auto"],
     zonaValidada: true,
-    zonaId: 'urdesa'
+    zonaId: 'urdesa',
+    ownerId: 'user-conductor-top',
+    ownerName: 'Carlos Mendoza',
+    ownerPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face'
   },
   {
     id: 19,
@@ -246,7 +256,10 @@ export const parkings: IParking[] = [
     horario: "24 horas",
     vehiculosPermitidos: ["Auto", "Moto"],
     zonaValidada: true,
-    zonaId: 'urdesa'
+    zonaId: 'urdesa',
+    ownerId: 'user-anfitrion-nuevo',
+    ownerName: 'María García',
+    ownerPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face'
   },
 
   // ==================== KENNEDY ====================
@@ -423,7 +436,10 @@ export const parkings: IParking[] = [
     horario: "24 horas",
     vehiculosPermitidos: ["Auto", "Moto"],
     zonaValidada: true,
-    zonaId: 'ceibos'
+    zonaId: 'ceibos',
+    ownerId: 'host-ceibos',
+    ownerName: 'Patricia Morales',
+    ownerPhoto: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=face'
   },
 
   // ==================== VÍA SAMBORONDÓN ====================

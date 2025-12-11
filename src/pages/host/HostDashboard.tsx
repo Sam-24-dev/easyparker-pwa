@@ -4,13 +4,17 @@ import { HostLayout } from '../../components/host/HostLayout';
 import { useHost, HostRequest } from '../../context/HostContext';
 import { useAuth } from '../../context/AuthContext';
 import { useParkingContext } from '../../context/ParkingContext';
+import { useRating } from '../../context/RatingContext';
+import { useReport } from '../../context/ReportContext';
+import { RatingModal } from '../../components/rating/RatingModal';
+import { ReportModal } from '../../components/report/ReportModal';
 import {
   DollarSign, Calendar, Star, Check, X, User, Car, LogOut,
   Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
-  Home
+  Home, Flag
 } from 'lucide-react';
 
-type TabType = 'pending' | 'in-progress' | 'history';
+type TabType = 'pending' | 'in-progress' | 'completed' | 'history';
 
 export default function HostDashboard() {
   const navigate = useNavigate();
@@ -25,6 +29,12 @@ export default function HostDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [filterParkingId, setFilterParkingId] = useState<number | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  // Estado para modales de calificación y reporte
+  const [ratingRequest, setRatingRequest] = useState<HostRequest | null>(null);
+  const [reportRequest, setReportRequest] = useState<HostRequest | null>(null);
+  const { addRating, hasRatedReserva } = useRating();
+  const { addReport, hasReportedUser } = useReport();
 
   // Countdowns para recovery (60s)
   const [, forceUpdate] = useState(0);
@@ -44,25 +54,39 @@ export default function HostDashboard() {
   useEffect(() => {
     if (!isOnline || activeGarages.length === 0) return;
 
+    // Función para obtener IDs de conductores con solicitudes activas para un garaje
+    const getUsedDriverIds = (parkingId: number): string[] => {
+      return requests
+        .filter(r => r.parkingId === parkingId && (r.status === 'pending' || r.status === 'accepted' || r.status === 'in-progress'))
+        .map(r => r.driverId)
+        .filter((id): id is string => id !== undefined);
+    };
+
     // Generar primera solicitud después de 5 segundos
     const initialTimeout = setTimeout(() => {
       const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
-      const newRequest = generateRequestForParking(randomGarage);
-      addRequest(newRequest);
+      const usedDriverIds = getUsedDriverIds(randomGarage.id);
+      const newRequest = generateRequestForParking(randomGarage, usedDriverIds);
+      if (newRequest) {
+        addRequest(newRequest);
+      }
     }, 5000);
 
     // Luego cada 10 segundos
     const interval = setInterval(() => {
       const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
-      const newRequest = generateRequestForParking(randomGarage);
-      addRequest(newRequest);
+      const usedDriverIds = getUsedDriverIds(randomGarage.id);
+      const newRequest = generateRequestForParking(randomGarage, usedDriverIds);
+      if (newRequest) {
+        addRequest(newRequest);
+      }
     }, 10000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [isOnline, activeGarages, addRequest, generateRequestForParking]);
+  }, [isOnline, activeGarages, addRequest, generateRequestForParking, requests]);
 
   // Actualizar countdowns cada segundo
   useEffect(() => {
@@ -131,6 +155,7 @@ export default function HostDashboard() {
   // Solicitudes por tab
   const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
   const inProgressRequests = filteredRequests.filter(r => r.status === 'in-progress');
+  const completedRequests = filteredRequests.filter(r => r.status === 'completed');
 
   // Historial filtrado también por garaje
   const filteredHistory = useMemo(() => {
@@ -189,11 +214,17 @@ export default function HostDashboard() {
             <img
               src={req.driverImage || `https://ui-avatars.com/api/?name=${req.driverName}`}
               alt={req.driverName}
-              className="w-10 h-10 rounded-full bg-slate-100 object-cover"
+              className={`w-10 h-10 rounded-full bg-slate-100 object-cover ${req.driverId ? 'cursor-pointer hover:ring-2 hover:ring-blue-400 transition' : ''}`}
+              onClick={() => req.driverId && navigate(`/perfil/${req.driverId}`)}
             />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-slate-800">{req.driverName}</h3>
+                <h3
+                  className={`font-semibold text-slate-800 ${req.driverId ? 'cursor-pointer hover:text-blue-600 transition' : ''}`}
+                  onClick={() => req.driverId && navigate(`/perfil/${req.driverId}`)}
+                >
+                  {req.driverName}
+                </h3>
                 {req.driverVerified && (
                   <span className="flex items-center gap-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
                     <Shield size={10} /> Verificado
@@ -204,9 +235,9 @@ export default function HostDashboard() {
             </div>
           </div>
           <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-              req.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                req.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                  'bg-emerald-100 text-emerald-700'
+            req.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+              req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                'bg-emerald-100 text-emerald-700'
             }`}>
             {req.status === 'pending' ? 'Pendiente' :
               req.status === 'in-progress' ? 'En curso' :
@@ -260,6 +291,40 @@ export default function HostDashboard() {
             Recuperar ({recoveryTime}s)
           </button>
         )}
+
+        {/* Botones para solicitudes en curso o completadas */}
+        {(req.status === 'in-progress' || req.status === 'completed') && (
+          <div className="flex gap-2 mt-2">
+            {/* Reportar - solo si no ya reportado */}
+            {req.driverId && !hasReportedUser(user?.id || '', req.driverId) ? (
+              <button
+                onClick={() => setReportRequest(req)}
+                className="flex-1 py-2 rounded-xl border border-red-200 text-red-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-red-50 active:scale-95 transition-transform"
+              >
+                <Flag size={14} /> Reportar
+              </button>
+            ) : req.driverId && (
+              <span className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-500 font-medium text-sm flex items-center justify-center gap-1">
+                <Flag size={14} /> Ya reportado
+              </span>
+            )}
+            {/* Calificar - solo para completadas y si no ya calificó */}
+            {req.status === 'completed' && req.driverId && (
+              hasRatedReserva(user?.id || '', req.id) ? (
+                <span className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-500 font-medium text-sm flex items-center justify-center gap-1">
+                  <Star size={14} /> Ya calificaste
+                </span>
+              ) : (
+                <button
+                  onClick={() => setRatingRequest(req)}
+                  className="flex-1 py-2 rounded-xl bg-amber-500 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-amber-600 active:scale-95 transition-transform"
+                >
+                  <Star size={14} /> Calificar
+                </button>
+              )
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -291,9 +356,12 @@ export default function HostDashboard() {
             <LogOut size={14} className="inline mr-1" />
             Salir
           </button>
-          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+          <button
+            onClick={() => navigate('/perfil')}
+            className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center hover:bg-emerald-200 transition cursor-pointer"
+          >
             <User className="text-emerald-700" size={20} />
-          </div>
+          </button>
         </div>
       </div>
 
@@ -381,8 +449,8 @@ export default function HostDashboard() {
           <button
             onClick={() => setActiveTab('pending')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pending'
-                ? 'bg-white text-emerald-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-800'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
               }`}
           >
             Pendientes
@@ -395,8 +463,8 @@ export default function HostDashboard() {
           <button
             onClick={() => setActiveTab('in-progress')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'in-progress'
-                ? 'bg-white text-blue-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-800'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
               }`}
           >
             En Curso
@@ -407,10 +475,24 @@ export default function HostDashboard() {
             )}
           </button>
           <button
+            onClick={() => setActiveTab('completed')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'completed'
+              ? 'bg-white text-purple-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
+              }`}
+          >
+            Completadas
+            {completedRequests.length > 0 && (
+              <span className="ml-1 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {completedRequests.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('history')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'history'
-                ? 'bg-white text-slate-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-800'
+              ? 'bg-white text-slate-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
               }`}
           >
             Historial
@@ -495,6 +577,20 @@ export default function HostDashboard() {
           </>
         )}
 
+        {activeTab === 'completed' && (
+          <>
+            {completedRequests.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100">
+                <Check size={32} className="mx-auto mb-2 text-slate-300" />
+                <p>No hay reservas completadas</p>
+                <p className="text-xs mt-2">Las reservas aparecen aquí cuando terminan</p>
+              </div>
+            ) : (
+              completedRequests.map(req => renderRequestCard(req))
+            )}
+          </>
+        )}
+
         {activeTab === 'history' && (
           <>
             {filteredHistory.length === 0 ? (
@@ -517,6 +613,51 @@ export default function HostDashboard() {
           {toast.message}
         </div>
       )}
+
+      {/* Modal de calificación */}
+      <RatingModal
+        isOpen={!!ratingRequest}
+        onClose={() => setRatingRequest(null)}
+        onSubmit={(data) => {
+          if (ratingRequest && user && ratingRequest.driverId) {
+            addRating({
+              fromUserId: user.id,
+              toUserId: ratingRequest.driverId,
+              reservaId: ratingRequest.id,
+              tipo: 'anfitrion_a_conductor',
+              estrellas: data.estrellas,
+              comentario: data.comentario,
+              fromUserName: user.nombre,
+              fromUserPhoto: user.avatar,
+            });
+            setToast({ message: '¡Gracias por tu calificación!', type: 'success' });
+            setTimeout(() => setToast(null), 2500);
+          }
+          setRatingRequest(null);
+        }}
+        targetName={ratingRequest?.driverName || ''}
+        tipo="conductor"
+      />
+
+      {/* Modal de reporte */}
+      <ReportModal
+        isOpen={!!reportRequest}
+        onClose={() => setReportRequest(null)}
+        onSubmit={(data) => {
+          if (reportRequest && user && reportRequest.driverId) {
+            addReport({
+              reportadoPorId: user.id,
+              reportadoAId: reportRequest.driverId,
+              razon: data.razon,
+              descripcion: data.descripcion,
+            });
+            setToast({ message: 'Reporte enviado. ¡Gracias por ayudar!', type: 'success' });
+            setTimeout(() => setToast(null), 2500);
+          }
+          setReportRequest(null);
+        }}
+        targetName={reportRequest?.driverName || ''}
+      />
     </HostLayout>
   );
 }

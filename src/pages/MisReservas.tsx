@@ -5,9 +5,14 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { RatingModal } from '../components/rating/RatingModal';
+import { ReportModal } from '../components/report/ReportModal';
 import { useReservaContext } from '../context/ReservaContext';
 import { useParkingContext } from '../context/ParkingContext';
-import { MapPin, QrCode, Download, Share2, Calendar, X } from 'lucide-react';
+import { useRating } from '../context/RatingContext';
+import { useReport } from '../context/ReportContext';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, QrCode, Download, Share2, Calendar, X, Star, Flag } from 'lucide-react';
 import { IReserva } from '../types';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toPng } from 'html-to-image';
@@ -29,6 +34,14 @@ export function MisReservas() {
   const [reservaParaQR, setReservaParaQR] = useState<IReserva | null>(null);
   const completadasRef = useRef<HTMLDivElement | null>(null);
   const voucherRef = useRef<HTMLDivElement | null>(null);
+
+  // Estado para calificar y reportar
+  const [ratingReserva, setRatingReserva] = useState<IReserva | null>(null); // Calificar GARAJE
+  const [ratingHostReserva, setRatingHostReserva] = useState<IReserva | null>(null); // Calificar ANFITRIÓN
+  const [reportReserva, setReportReserva] = useState<IReserva | null>(null);
+  const { addRating, hasRatedReserva } = useRating();
+  const { addReport, hasReportedUser } = useReport();
+  const { user } = useAuth();
 
   const activas = getReservasActivas();
   const completadas = getReservasCompletadas();
@@ -269,14 +282,70 @@ export function MisReservas() {
                   </>
                 )}
                 {reserva.estado === 'completada' && (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => abrirModalEliminacion(reserva)}
-                    className="text-xs px-2 sm:px-3"
-                  >
-                    Eliminar
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => abrirModalEliminacion(reserva)}
+                      className="text-xs px-2 sm:px-3"
+                    >
+                      Eliminar
+                    </Button>
+                    {/* Calificar GARAJE - solo si no ha calificado el garaje */}
+                    {parking && (
+                      hasRatedReserva(user?.id || '', `${reserva.id}-garaje`) ? (
+                        <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-1.5 rounded-lg">
+                          <Star size={12} /> Garaje ✓
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setRatingReserva(reserva)}
+                          className="text-xs px-2 sm:px-3 bg-amber-100 text-amber-700 hover:bg-amber-200"
+                        >
+                          <Star size={14} className="mr-1" />
+                          Garaje
+                        </Button>
+                      )
+                    )}
+                    {/* Calificar ANFITRIÓN - solo si hay propietario y no ha calificado */}
+                    {parking?.ownerId && (
+                      hasRatedReserva(user?.id || '', `${reserva.id}-anfitrion`) ? (
+                        <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-1.5 rounded-lg">
+                          <Star size={12} /> Anfitrión ✓
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setRatingHostReserva(reserva)}
+                          className="text-xs px-2 sm:px-3 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        >
+                          <Star size={14} className="mr-1" />
+                          Anfitrión
+                        </Button>
+                      )
+                    )}
+                    {/* Reportar - solo si no ha reportado */}
+                    {parking?.ownerId ? (
+                      !hasReportedUser(user?.id || '', parking.ownerId) ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setReportReserva(reserva)}
+                          className="text-xs px-2 sm:px-3 border-red-200 text-red-600 hover:bg-red-50"
+                        >
+                          <Flag size={14} className="mr-1" />
+                          Reportar
+                        </Button>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-1.5 rounded-lg">
+                          <Flag size={12} /> Ya reportado
+                        </span>
+                      )
+                    ) : null}
+                  </>
                 )}
                 <Button
                   size="sm"
@@ -356,11 +425,10 @@ export function MisReservas() {
                   <button
                     key={opcion.value}
                     onClick={() => setExtraSeleccionada(opcion.value)}
-                    className={`rounded-xl sm:rounded-2xl border px-2 py-2 text-sm font-semibold transition ${
-                      extraSeleccionada === opcion.value
-                        ? 'border-[#0B1F60] bg-[#0B1F60] text-white'
-                        : 'border-slate-200 bg-white text-[#0B1F60]'
-                    }`}
+                    className={`rounded-xl sm:rounded-2xl border px-2 py-2 text-sm font-semibold transition ${extraSeleccionada === opcion.value
+                      ? 'border-[#0B1F60] bg-[#0B1F60] text-white'
+                      : 'border-slate-200 bg-white text-[#0B1F60]'
+                      }`}
                   >
                     {opcion.label}
                   </button>
@@ -378,13 +446,13 @@ export function MisReservas() {
               <div className="text-right">
                 <p className="text-xs text-slate-500">Total extra</p>
                 <p className="text-lg sm:text-xl font-bold">
-                  ${ (selectedParking.precio * extraSeleccionada).toFixed(2) }
+                  ${(selectedParking.precio * extraSeleccionada).toFixed(2)}
                 </p>
               </div>
             </div>
 
             <Button className="w-full" onClick={confirmarExtension}>
-              Extender por ${ (selectedParking.precio * extraSeleccionada).toFixed(2) }
+              Extender por ${(selectedParking.precio * extraSeleccionada).toFixed(2)}
             </Button>
           </div>
         ) : (
@@ -562,6 +630,79 @@ export function MisReservas() {
           {toastMessage}
         </div>
       )}
+
+      {/* Modal de calificación del GARAJE */}
+      <RatingModal
+        isOpen={!!ratingReserva}
+        onClose={() => setRatingReserva(null)}
+        onSubmit={(data) => {
+          if (ratingReserva && user) {
+            const parkingData = getParkingById(ratingReserva.parqueoId);
+            addRating({
+              fromUserId: user.id,
+              toUserId: `garaje-${ratingReserva.parqueoId}`,
+              reservaId: `${ratingReserva.id}-garaje`,
+              tipo: 'conductor_a_anfitrion',
+              estrellas: data.estrellas,
+              comentario: data.comentario,
+              fromUserName: user.nombre,
+              fromUserPhoto: user.avatar,
+            });
+            setToastMessage(`¡Gracias por calificar ${parkingData?.nombre || 'el garaje'}!`);
+          }
+          setRatingReserva(null);
+        }}
+        targetName={getParkingById(ratingReserva?.parqueoId || 0)?.nombre || ''}
+        tipo="garaje"
+      />
+
+      {/* Modal de calificación del ANFITRIÓN */}
+      <RatingModal
+        isOpen={!!ratingHostReserva}
+        onClose={() => setRatingHostReserva(null)}
+        onSubmit={(data) => {
+          if (ratingHostReserva && user) {
+            const parkingData = getParkingById(ratingHostReserva.parqueoId);
+            const targetOwnerId = parkingData?.ownerId || `owner-${ratingHostReserva.parqueoId}`;
+            addRating({
+              fromUserId: user.id,
+              toUserId: targetOwnerId,
+              reservaId: `${ratingHostReserva.id}-anfitrion`,
+              tipo: 'conductor_a_anfitrion',
+              estrellas: data.estrellas,
+              comentario: data.comentario,
+              fromUserName: user.nombre,
+              fromUserPhoto: user.avatar,
+            });
+            setToastMessage(`¡Gracias por calificar a ${parkingData?.ownerName || 'el anfitrión'}!`);
+          }
+          setRatingHostReserva(null);
+        }}
+        targetName={getParkingById(ratingHostReserva?.parqueoId || 0)?.ownerName || 'Anfitrión'}
+        tipo="anfitrion"
+      />
+
+      {/* Modal de reporte del anfitrión */}
+      <ReportModal
+        isOpen={!!reportReserva}
+        onClose={() => setReportReserva(null)}
+        onSubmit={(data) => {
+          if (reportReserva && user) {
+            const parkingData = getParkingById(reportReserva.parqueoId);
+            const targetOwnerId = parkingData?.ownerId || `owner-${reportReserva.parqueoId}`;
+            addReport({
+              reportadoPorId: user.id,
+              reportadoAId: targetOwnerId,
+              razon: data.razon,
+              descripcion: data.descripcion,
+            });
+            setToastMessage('Reporte enviado. ¡Gracias por ayudar a mantener la comunidad segura!');
+          }
+          setReportReserva(null);
+        }}
+        targetName={getParkingById(reportReserva?.parqueoId || 0)?.ownerName || 'el anfitrión'}
+        reportType="driver_to_host"
+      />
     </Layout>
   );
 }

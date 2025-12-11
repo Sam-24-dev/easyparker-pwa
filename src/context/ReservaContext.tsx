@@ -52,23 +52,37 @@ const markUserAsInitialized = () => {
 };
 
 export function ReservaProvider({ children }: { children: ReactNode }) {
-  // Cargar reservas: usuarios nuevos empiezan sin reservas, usuarios existentes mantienen sus datos
+  // Cargar reservas: siempre incluir reserva completada demo si no existe
   const getInitialReservas = (): IReserva[] => {
     const storedReservas = loadReservasFromStorage();
-    
-    // Si hay reservas guardadas, usarlas
+
+    // Reserva completada de ejemplo para probar flujo de calificación
+    const mockCompletedReserva: IReserva = {
+      id: 'reserva-completada-demo',
+      parqueoId: 5, // Garaje Las Iguanas Premium (tiene owner: Fernando Reyes)
+      fecha: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Hace 2 días
+      horaInicio: '10:00',
+      horaFin: '12:00',
+      estado: 'completada',
+      vehiculo: 'Auto',
+      placa: 'GYE-1234',
+    };
+
+    // Si hay reservas guardadas, verificar que la demo exista
     if (storedReservas.length > 0) {
+      const hasDemoReserva = storedReservas.some(r => r.id === 'reserva-completada-demo');
+      if (!hasDemoReserva) {
+        // Agregar la reserva demo si no existe
+        return [...storedReservas, mockCompletedReserva];
+      }
       return storedReservas;
     }
-    
-    // Si es un usuario nuevo, empezar sin reservas
+
+    // Usuario nuevo o sin reservas - empezar con la reserva demo
     if (isNewUser()) {
       markUserAsInitialized();
-      return [];
     }
-    
-    // Usuario existente sin reservas guardadas pero ya inicializado - mantener vacío
-    return [];
+    return [mockCompletedReserva];
   };
 
   const [reservas, setReservas] = useState<IReserva[]>(getInitialReservas);
@@ -97,13 +111,13 @@ export function ReservaProvider({ children }: { children: ReactNode }) {
       prev.map(reserva =>
         reserva.id === reservaId
           ? (() => {
-              const nuevoFin = formatHoraWithExtra(reserva.horaFin, horasExtra);
-              const nuevosSlots = getAdditionalSlotKeys(reserva.horaFin, nuevoFin);
-              if (nuevosSlots.length) {
-                reserveParkingSlots(reserva.parqueoId, nuevosSlots);
-              }
-              return { ...reserva, horaFin: nuevoFin };
-            })()
+            const nuevoFin = formatHoraWithExtra(reserva.horaFin, horasExtra);
+            const nuevosSlots = getAdditionalSlotKeys(reserva.horaFin, nuevoFin);
+            if (nuevosSlots.length) {
+              reserveParkingSlots(reserva.parqueoId, nuevosSlots);
+            }
+            return { ...reserva, horaFin: nuevoFin };
+          })()
           : reserva
       )
     );

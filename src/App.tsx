@@ -4,6 +4,9 @@ import { ReservaProvider } from './context/ReservaContext';
 import { AuthProvider } from './context/AuthContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { HostProvider } from './context/HostContext';
+import { ProfileProvider } from './context/ProfileContext';
+import { RatingProvider } from './context/RatingContext';
+import { ReportProvider } from './context/ReportContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
@@ -14,6 +17,7 @@ import { Detalle } from './pages/Detalle';
 import { Reservar } from './pages/Reservar';
 import { MisReservas } from './pages/MisReservas';
 import { Favoritos } from './pages/Favoritos';
+import { Profile } from './pages/Profile';
 // Host Pages
 import HostDashboard from './pages/host/HostDashboard';
 import HostGarage from './pages/host/HostGarage';
@@ -81,6 +85,16 @@ function AppRoutes() {
           }
         />
 
+        {/* Ruta de Perfil */}
+        <Route
+          path="/perfil/:userId?"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Rutas del Modo Anfitrión */}
         <Route
           path="/host/dashboard"
@@ -118,15 +132,21 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <ParkingProvider>
-          <FavoritesProvider>
-            <ReservaProvider>
-              <HostProvider>
-                <AppRoutes />
-              </HostProvider>
-            </ReservaProvider>
-          </FavoritesProvider>
-        </ParkingProvider>
+        <ProfileProvider>
+          <RatingProvider>
+            <ReportProvider>
+              <ParkingProvider>
+                <FavoritesProvider>
+                  <ReservaProvider>
+                    <HostProvider>
+                      <AppRoutes />
+                    </HostProvider>
+                  </ReservaProvider>
+                </FavoritesProvider>
+              </ParkingProvider>
+            </ReportProvider>
+          </RatingProvider>
+        </ProfileProvider>
       </AuthProvider>
     </Router>
   );

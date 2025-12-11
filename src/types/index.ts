@@ -23,6 +23,7 @@ export interface IParking {
   // Campos para gestión de garajes del anfitrión
   claimedFromId?: number; // ID del parqueo estático del que se reclamó (para copias en userParkings)
   claimedBy?: string; // Nombre del propietario que reclamó este parqueo
+  ownerId?: string; // ID del dueño del garaje (para perfil)
   ownerName?: string; // Nombre del dueño del garaje
   ownerPhoto?: string; // Foto del dueño
   isActive?: boolean; // Si el garaje está activo o pausado
@@ -66,4 +67,57 @@ export interface IFiltros {
 export interface IUsuario {
   lat: number;
   lng: number;
+}
+
+// ========== FASE 2: Perfiles Públicos y Confianza ==========
+
+export interface IUserProfile {
+  id: string;
+  nombre: string;
+  email: string;
+  foto: string;
+  ubicacion?: string;
+  fechaRegistro: string;
+  rol: 'conductor' | 'anfitrion' | 'ambos';
+  verificado: boolean;
+  telefono?: string;
+  bio?: string;
+  estadisticas: {
+    reservasCompletadas: number;
+    reservasRecibidas?: number;
+    calificacionPromedio: number;
+    totalResenas: number;
+    tiempoRespuesta?: string;
+  };
+}
+
+export interface IRating {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  reservaId: string;
+  tipo: 'conductor_a_anfitrion' | 'anfitrion_a_conductor';
+  estrellas: 1 | 2 | 3 | 4 | 5;
+  comentario?: string;
+  fecha: string;
+  fromUserName?: string;
+  fromUserPhoto?: string;
+}
+
+export type RazonReporte =
+  | 'comportamiento_inapropiado'
+  | 'danos_propiedad'
+  | 'no_se_presento'
+  | 'informacion_falsa'
+  | 'spam'
+  | 'otro';
+
+export interface IReport {
+  id: string;
+  reportadoPorId: string;
+  reportadoAId: string;
+  razon: RazonReporte;
+  descripcion?: string;
+  fecha: string;
+  status: 'pendiente' | 'revisado';
 }
