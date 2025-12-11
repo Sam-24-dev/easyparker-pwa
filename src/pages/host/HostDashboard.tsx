@@ -4,8 +4,8 @@ import { HostLayout } from '../../components/host/HostLayout';
 import { useHost, HostRequest } from '../../context/HostContext';
 import { useAuth } from '../../context/AuthContext';
 import { useParkingContext } from '../../context/ParkingContext';
-import { 
-  DollarSign, Calendar, Star, Check, X, User, Car, LogOut, 
+import {
+  DollarSign, Calendar, Star, Check, X, User, Car, LogOut,
   Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
   Home
 } from 'lucide-react';
@@ -14,21 +14,21 @@ type TabType = 'pending' | 'in-progress' | 'history';
 
 export default function HostDashboard() {
   const navigate = useNavigate();
-  const { 
+  const {
     stats, requests, handleRequest, isOnline, toggleOnline, addRequest, toggleHostMode,
     historyRequests, recoverRequest, todayStats, generateRequestForParking, updateRequestStatus
   } = useHost();
   const { user, logout } = useAuth();
   const { userParkings } = useParkingContext();
-  
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [filterParkingId, setFilterParkingId] = useState<number | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  
+
   // Countdowns para recovery (60s)
   const [, forceUpdate] = useState(0);
-  
+
   // userParkings YA incluye los garajes creados + reclamados (viene del contexto combinado)
   // No necesitamos volver a agregar los claimedParkings
   const allMyGarages = useMemo(() => {
@@ -101,14 +101,14 @@ export default function HostDashboard() {
   const handleRequestAction = (id: string, action: 'accept' | 'reject') => {
     const request = requests.find(r => r.id === id);
     handleRequest(id, action);
-    
+
     if (action === 'accept' && request) {
       const netEarning = (request.totalPrice * 0.9).toFixed(2);
       setToast({ message: `+$${netEarning} ganados (neto)`, type: 'success' });
     } else {
       setToast({ message: 'Solicitud rechazada - 60s para recuperar', type: 'error' });
     }
-    
+
     setTimeout(() => setToast(null), 2500);
   };
 
@@ -131,7 +131,7 @@ export default function HostDashboard() {
   // Solicitudes por tab
   const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
   const inProgressRequests = filteredRequests.filter(r => r.status === 'in-progress');
-  
+
   // Historial filtrado también por garaje
   const filteredHistory = useMemo(() => {
     let list = historyRequests;
@@ -153,13 +153,13 @@ export default function HostDashboard() {
     const end = new Date(endTime).getTime();
     const now = Date.now();
     const diff = end - now;
-    
+
     if (diff <= 0) return 'Finalizada';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -169,7 +169,7 @@ export default function HostDashboard() {
   // Renderizar tarjeta de solicitud
   const renderRequestCard = (req: HostRequest, showRecovery = false) => {
     const recoveryTime = showRecovery ? getRecoveryTimeLeft(req.rejectedAt) : 0;
-    
+
     return (
       <div key={req.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         {/* Información del garaje */}
@@ -183,11 +183,11 @@ export default function HostDashboard() {
           )}
           <span className="text-xs font-medium text-slate-600">{req.parkingName}</span>
         </div>
-        
+
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-3">
-            <img 
-              src={req.driverImage || `https://ui-avatars.com/api/?name=${req.driverName}`} 
+            <img
+              src={req.driverImage || `https://ui-avatars.com/api/?name=${req.driverName}`}
               alt={req.driverName}
               className="w-10 h-10 rounded-full bg-slate-100 object-cover"
             />
@@ -203,22 +203,21 @@ export default function HostDashboard() {
               <p className="text-xs text-slate-500">{req.vehicleModel} • {req.vehiclePlate}</p>
             </div>
           </div>
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-            req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-            req.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-            req.status === 'rejected' ? 'bg-red-100 text-red-700' :
-            'bg-emerald-100 text-emerald-700'
-          }`}>
-            {req.status === 'pending' ? 'Pendiente' : 
-             req.status === 'in-progress' ? 'En curso' :
-             req.status === 'rejected' ? 'Rechazada' : 'Completada'}
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              req.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-emerald-100 text-emerald-700'
+            }`}>
+            {req.status === 'pending' ? 'Pendiente' :
+              req.status === 'in-progress' ? 'En curso' :
+                req.status === 'rejected' ? 'Rechazada' : 'Completada'}
           </span>
         </div>
-        
+
         <div className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded-lg mb-3">
           <span className="text-slate-600">
-            {new Date(req.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
-            {new Date(req.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            {new Date(req.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+            {new Date(req.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           <span className="font-bold text-emerald-700">${req.totalPrice.toFixed(2)}</span>
         </div>
@@ -236,13 +235,13 @@ export default function HostDashboard() {
         {/* Botones de acción para pendientes */}
         {req.status === 'pending' && (
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => handleRequestAction(req.id, 'reject')}
               className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm flex items-center justify-center gap-1 hover:bg-slate-50 active:scale-95 transition-transform"
             >
               <X size={16} /> Rechazar
             </button>
-            <button 
+            <button
               onClick={() => handleRequestAction(req.id, 'accept')}
               className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1 hover:bg-emerald-700 active:scale-95 transition-transform"
             >
@@ -253,11 +252,11 @@ export default function HostDashboard() {
 
         {/* Botón de recuperación para historial */}
         {showRecovery && recoveryTime > 0 && (
-          <button 
+          <button
             onClick={() => handleRecover(req.id)}
             className="w-full py-2 rounded-xl border-2 border-amber-400 text-amber-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-amber-50 active:scale-95 transition-transform"
           >
-            <RotateCcw size={16} /> 
+            <RotateCcw size={16} />
             Recuperar ({recoveryTime}s)
           </button>
         )}
@@ -268,15 +267,15 @@ export default function HostDashboard() {
   return (
     <HostLayout showNav>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-emerald-900">Hola, Anfitrión</h1>
           <p className="text-sm text-slate-500">Gestiona tu garaje</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Botón Conductor - Solo si también es driver */}
           {user?.roles?.driver === true && (
-            <button 
+            <button
               onClick={handleSwitchToDriver}
               className="text-xs font-medium text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-full hover:bg-emerald-200 transition"
             >
@@ -285,7 +284,7 @@ export default function HostDashboard() {
             </button>
           )}
           {/* Botón Salir */}
-          <button 
+          <button
             onClick={handleLogout}
             className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition"
           >
@@ -307,7 +306,7 @@ export default function HostDashboard() {
               {isOnline ? 'Recibiendo Reservas' : 'No disponible'}
             </h3>
             <p className="text-xs text-slate-500">
-              {isOnline 
+              {isOnline
                 ? `${activeGarages.length} garaje${activeGarages.length !== 1 ? 's' : ''} activo${activeGarages.length !== 1 ? 's' : ''}`
                 : 'Activa para recibir solicitudes'}
             </p>
@@ -316,9 +315,8 @@ export default function HostDashboard() {
         <button
           onClick={toggleOnline}
           disabled={activeGarages.length === 0}
-          className={`w-14 h-8 rounded-full transition-colors relative ${
-            isOnline ? 'bg-emerald-500' : 'bg-slate-300'
-          } ${activeGarages.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-14 h-8 rounded-full transition-colors relative ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+            } ${activeGarages.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <div className={`w-6 h-6 bg-white rounded-full absolute top-1 shadow-sm transition-transform ${isOnline ? 'left-7' : 'left-1'}`} />
         </button>
@@ -380,13 +378,12 @@ export default function HostDashboard() {
       {/* Tabs + Filtro */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-          <button 
+          <button
             onClick={() => setActiveTab('pending')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'pending' 
-                ? 'bg-white text-emerald-700 shadow-sm' 
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pending'
+                ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-800'
-            }`}
+              }`}
           >
             Pendientes
             {pendingRequests.length > 0 && (
@@ -395,13 +392,12 @@ export default function HostDashboard() {
               </span>
             )}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('in-progress')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'in-progress' 
-                ? 'bg-white text-blue-700 shadow-sm' 
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'in-progress'
+                ? 'bg-white text-blue-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-800'
-            }`}
+              }`}
           >
             En Curso
             {inProgressRequests.length > 0 && (
@@ -410,13 +406,12 @@ export default function HostDashboard() {
               </span>
             )}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('history')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'history' 
-                ? 'bg-white text-slate-700 shadow-sm' 
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'history'
+                ? 'bg-white text-slate-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-800'
-            }`}
+              }`}
           >
             Historial
             {filteredHistory.length > 0 && (
@@ -426,7 +421,7 @@ export default function HostDashboard() {
             )}
           </button>
         </div>
-        
+
         {/* Filtro por garaje - Solo garajes ACTIVOS */}
         {activeGarages.length > 1 && (
           <div className="relative">
@@ -438,14 +433,13 @@ export default function HostDashboard() {
               {filterParkingId === 'all' ? 'Todos' : activeGarages.find(g => g.id === filterParkingId)?.nombre?.slice(0, 12) || 'Filtrar'}
               <ChevronDown size={14} />
             </button>
-            
+
             {showFilterDropdown && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 min-w-[160px] py-1">
                 <button
                   onClick={() => { setFilterParkingId('all'); setShowFilterDropdown(false); }}
-                  className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                    filterParkingId === 'all' ? 'text-emerald-600 font-medium' : 'text-slate-600'
-                  }`}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${filterParkingId === 'all' ? 'text-emerald-600 font-medium' : 'text-slate-600'
+                    }`}
                 >
                   Todos los garajes
                 </button>
@@ -453,9 +447,8 @@ export default function HostDashboard() {
                   <button
                     key={g.id}
                     onClick={() => { setFilterParkingId(g.id); setShowFilterDropdown(false); }}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${
-                      filterParkingId === g.id ? 'text-emerald-600 font-medium' : 'text-slate-600'
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${filterParkingId === g.id ? 'text-emerald-600 font-medium' : 'text-slate-600'
+                      }`}
                   >
                     {g.foto ? (
                       <img src={g.foto} alt="" className="w-5 h-5 rounded object-cover" />
@@ -519,9 +512,8 @@ export default function HostDashboard() {
 
       {/* Toast de feedback */}
       {toast && (
-        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-50 animate-bounce ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'
-        }`}>
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-50 animate-bounce ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'
+          }`}>
           {toast.message}
         </div>
       )}

@@ -90,14 +90,14 @@ export function Home() {
         )}
 
         <section className="rounded-3xl bg-gradient-to-br from-[#0A1F63] to-[#132A74] text-white p-6 shadow-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-white/70">Hola {firstName}!</p>
               <h1 className="text-2xl font-semibold mt-1 leading-snug">
                 ¿Quieres buscar estacionamiento?
               </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
               {/* Botón Modo Anfitrión - Solo si es host */}
               {user?.roles?.host === true && (
                 <button
