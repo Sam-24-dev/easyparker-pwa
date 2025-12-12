@@ -6,8 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useParkingContext } from '../../context/ParkingContext';
 import { useRating } from '../../context/RatingContext';
 import { useReport } from '../../context/ReportContext';
+import { useChatContext } from '../../context/ChatContext';
 import { RatingModal } from '../../components/rating/RatingModal';
 import { ReportModal } from '../../components/report/ReportModal';
+import { getRandomDriverInitialMessage } from '../../data/chatMock';
 import {
   DollarSign, Calendar, Star, Check, X, User, Car, LogOut,
   Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
@@ -24,6 +26,7 @@ export default function HostDashboard() {
   } = useHost();
   const { user, logout } = useAuth();
   const { userParkings } = useParkingContext();
+  const { createConversationFromRequest, sendInitialMessage } = useChatContext();
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
@@ -129,6 +132,27 @@ export default function HostDashboard() {
     if (action === 'accept' && request) {
       const netEarning = (request.totalPrice * 0.9).toFixed(2);
       setToast({ message: `+$${netEarning} ganados (neto)`, type: 'success' });
+
+      // Crear conversación con el conductor
+      if (request.driverId) {
+        const conversation = createConversationFromRequest({
+          driverId: request.driverId,
+          driverName: request.driverName,
+          driverPhoto: request.driverImage,
+          parkingId: request.parkingId,
+          parkingName: request.parkingName,
+          requestId: request.id,
+        });
+
+        // El conductor envía un mensaje inicial automático
+        setTimeout(() => {
+          sendInitialMessage(
+            conversation.id,
+            getRandomDriverInitialMessage(),
+            { id: request.driverId!, name: request.driverName, photo: request.driverImage }
+          );
+        }, 1000);
+      }
     } else {
       setToast({ message: 'Solicitud rechazada - 60s para recuperar', type: 'error' });
     }

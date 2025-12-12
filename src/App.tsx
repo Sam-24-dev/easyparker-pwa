@@ -7,6 +7,7 @@ import { HostProvider } from './context/HostContext';
 import { ProfileProvider } from './context/ProfileContext';
 import { RatingProvider } from './context/RatingContext';
 import { ReportProvider } from './context/ReportContext';
+import { ChatProvider } from './context/ChatContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
@@ -18,10 +19,14 @@ import { Reservar } from './pages/Reservar';
 import { MisReservas } from './pages/MisReservas';
 import { Favoritos } from './pages/Favoritos';
 import { Profile } from './pages/Profile';
+import { Mensajes } from './pages/Mensajes';
+import { ChatView } from './pages/ChatView';
 // Host Pages
 import HostDashboard from './pages/host/HostDashboard';
 import HostGarage from './pages/host/HostGarage';
 import HostWallet from './pages/host/HostWallet';
+import HostMensajes from './pages/host/HostMensajes';
+import HostChatView from './pages/host/HostChatView';
 
 function AppRoutes() {
   return (
@@ -85,6 +90,24 @@ function AppRoutes() {
           }
         />
 
+        {/* Ruta de Mensajes (Conductor) */}
+        <Route
+          path="/mensajes"
+          element={
+            <ProtectedRoute>
+              <Mensajes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mensajes/:conversationId"
+          element={
+            <ProtectedRoute>
+              <ChatView />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Ruta de Perfil */}
         <Route
           path="/perfil/:userId?"
@@ -120,6 +143,22 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/host/mensajes/:conversationId"
+          element={
+            <ProtectedRoute>
+              <HostChatView />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/host/mensajes"
+          element={
+            <ProtectedRoute>
+              <HostMensajes />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Redirigir cualquier ruta desconocida a splash */}
         <Route path="*" element={<Navigate to="/splash" replace />} />
@@ -139,7 +178,9 @@ function App() {
                 <FavoritesProvider>
                   <ReservaProvider>
                     <HostProvider>
-                      <AppRoutes />
+                      <ChatProvider>
+                        <AppRoutes />
+                      </ChatProvider>
                     </HostProvider>
                   </ReservaProvider>
                 </FavoritesProvider>

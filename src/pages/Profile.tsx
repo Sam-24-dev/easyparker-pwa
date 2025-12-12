@@ -87,7 +87,7 @@ export function Profile() {
     };
 
     return (
-        <Layout showNav backgroundClassName="bg-slate-50">
+        <Layout showNav>
             {/* Header con foto */}
             <div className="relative">
                 {/* Background gradient */}

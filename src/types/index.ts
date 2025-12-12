@@ -121,3 +121,33 @@ export interface IReport {
   fecha: string;
   status: 'pendiente' | 'revisado';
 }
+
+// ========== FASE 3: Sistema de Mensajes ==========
+
+export interface IMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  content: string;
+  timestamp: string;
+  isRead: boolean;
+  isFromCurrentUser: boolean;
+}
+
+export interface IConversation {
+  id: string;
+  type: 'host' | 'driver' | 'support';
+  participantId: string;
+  participantName: string;
+  participantPhoto?: string;
+  reservaId?: string;
+  parkingId?: number;
+  parkingName?: string;
+  parkingPhoto?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  isActive: boolean;
+}

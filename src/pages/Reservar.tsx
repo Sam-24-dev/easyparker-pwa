@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useReservaContext } from '../context/ReservaContext';
+import { useChatContext } from '../context/ChatContext';
 import { IReserva, TipoVehiculo } from '../types';
 import { Button } from '../components/ui/Button';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toPng } from 'html-to-image';
-import { Calendar, CreditCard, Download, Share2, Wallet, ArrowLeft } from 'lucide-react';
+import { Calendar, CreditCard, Download, Share2, Wallet, MessageCircle } from 'lucide-react';
 import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
+import { getRandomHostWelcomeMessage } from '../data/chatMock';
 
 const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
 
@@ -96,6 +98,7 @@ export function Reservar() {
   const navigate = useNavigate();
   const { getParkingById, filtros, getBlockedSlots } = useParkingContext();
   const { agregarReserva } = useReservaContext();
+  const { createConversationFromReserva, sendInitialMessage } = useChatContext();
   const parking = getParkingById(Number(id));
   const parkingId = parking?.id ?? null;
   const blockedSlots = useMemo(() => {
@@ -119,6 +122,7 @@ export function Reservar() {
   const [cvvError, setCvvError] = useState('');
   const [confirmedHoraInicio, setConfirmedHoraInicio] = useState('');
   const [confirmedHoraFin, setConfirmedHoraFin] = useState('');
+  const [conversationId, setConversationId] = useState('');
   const voucherRef = useRef<HTMLDivElement | null>(null);
 
   const selectedSlots = useMemo(() => {
@@ -169,8 +173,8 @@ export function Reservar() {
 
   const qrValue = useMemo(() => {
     if (!reservaCode || !parking) return '';
-    const horarioQR = confirmedHoraInicio && confirmedHoraFin 
-      ? `${confirmedHoraInicio} - ${confirmedHoraFin}` 
+    const horarioQR = confirmedHoraInicio && confirmedHoraFin
+      ? `${confirmedHoraInicio} - ${confirmedHoraFin}`
       : horarioResumen;
     return JSON.stringify({ reserva: reservaCode, placa: placa.toUpperCase(), parking: parking.nombre, horario: horarioQR });
   }, [reservaCode, placa, parking, horarioResumen, confirmedHoraInicio, confirmedHoraFin]);
@@ -258,7 +262,7 @@ export function Reservar() {
     if (!parking || !selectedSlots.length) return;
     const code = `EP-${Math.floor(Math.random() * 9000 + 1000)}`;
     setReservaCode(code);
-    
+
     // Guardar horario confirmado antes de que se resetee el estado
     setConfirmedHoraInicio(horaInicio);
     setConfirmedHoraFin(horaFin);
@@ -275,7 +279,39 @@ export function Reservar() {
     };
 
     agregarReserva(nuevaReserva);
+
+    // Crear conversación con el anfitrión
+    const conversation = createConversationFromReserva({
+      hostId: parking.ownerId || `host-${parking.id}`,
+      hostName: parking.ownerName || 'Anfitrión',
+      hostPhoto: parking.ownerPhoto,
+      parkingId: parking.id,
+      parkingName: parking.nombre,
+      reservaId: code,
+    });
+
+    // Guardar el ID de la conversación para navegar después
+    setConversationId(conversation.id);
+
+    // El anfitrión envía un mensaje de bienvenida automático
+    setTimeout(() => {
+      sendInitialMessage(
+        conversation.id,
+        getRandomHostWelcomeMessage(),
+        { id: parking.ownerId || `host-${parking.id}`, name: parking.ownerName || 'Anfitrión', photo: parking.ownerPhoto }
+      );
+    }, 1000);
+
     setStep(4);
+  };
+
+  const handleContactHost = () => {
+    // Navegar a la conversación creada
+    if (conversationId) {
+      navigate(`/mensajes/${conversationId}`);
+    } else {
+      navigate('/mensajes');
+    }
   };
 
   const volver = () => {
@@ -307,8 +343,8 @@ export function Reservar() {
 
   const handleShareWhatsApp = () => {
     if (!reservaCode) return;
-    const horarioMsg = confirmedHoraInicio && confirmedHoraFin 
-      ? `${confirmedHoraInicio} - ${confirmedHoraFin}` 
+    const horarioMsg = confirmedHoraInicio && confirmedHoraFin
+      ? `${confirmedHoraInicio} - ${confirmedHoraFin}`
       : horarioResumen;
     const message = encodeURIComponent(`Hola, esta es mi reserva ${reservaCode} en ${parking.nombre} (${horarioMsg}). Placa ${placa.toUpperCase()}.`);
     window.open(`https://wa.me/?text=${message}`, '_blank');
@@ -404,13 +440,12 @@ export function Reservar() {
                     key={slot.label}
                     disabled={!slot.available}
                     onClick={() => handleSlotClick(index)}
-                    className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
-                      !slot.available
-                        ? 'border-red-200 bg-red-50 text-red-300 cursor-not-allowed'
-                        : isSelected
+                    className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${!slot.available
+                      ? 'border-red-200 bg-red-50 text-red-300 cursor-not-allowed'
+                      : isSelected
                         ? 'border-[#5A63F2] bg-[#5A63F2] text-white shadow-lg'
                         : 'border-slate-200 bg-white text-[#0B1F60] hover:border-[#5A63F2]'
-                    }`}
+                      }`}
                   >
                     {slot.label}
                   </button>
@@ -450,11 +485,10 @@ export function Reservar() {
                   key={tipo}
                   type="button"
                   onClick={() => setVehiculoSeleccionado(tipo)}
-                  className={`rounded-3xl border p-4 text-left transition space-y-3 ${
-                    vehiculoSeleccionado === tipo
-                      ? 'border-[#5A63F2] bg-[#5A63F2]/10'
-                      : 'border-slate-200'
-                  }`}
+                  className={`rounded-3xl border p-4 text-left transition space-y-3 ${vehiculoSeleccionado === tipo
+                    ? 'border-[#5A63F2] bg-[#5A63F2]/10'
+                    : 'border-slate-200'
+                    }`}
                 >
                   <VehicleIllustration tipo={tipo} />
                   <p className="font-semibold text-[#0B1F60]">{tipo}</p>
@@ -469,9 +503,8 @@ export function Reservar() {
               value={placa}
               onChange={(e) => handlePlacaChange(e.target.value)}
               placeholder="ABC-1234"
-              className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 text-center font-mono tracking-[0.3em] focus:outline-none ${
-                placaError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
-              }`}
+              className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 text-center font-mono tracking-[0.3em] focus:outline-none ${placaError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+                }`}
             />
             {placaError ? (
               <p className="text-xs text-red-500 mt-1">{placaError}</p>
@@ -495,9 +528,8 @@ export function Reservar() {
                 key={option.id}
                 type="button"
                 onClick={() => setSelectedMethod(option.id)}
-                className={`w-full flex items-center justify-between rounded-3xl border px-4 py-3 text-left transition ${
-                  selectedMethod === option.id ? 'border-[#5A63F2] bg-[#5A63F2]/10' : 'border-slate-200'
-                }`}
+                className={`w-full flex items-center justify-between rounded-3xl border px-4 py-3 text-left transition ${selectedMethod === option.id ? 'border-[#5A63F2] bg-[#5A63F2]/10' : 'border-slate-200'
+                  }`}
               >
                 <div>
                   <p className="text-sm font-semibold text-[#0B1F60] flex items-center gap-2">
@@ -507,9 +539,8 @@ export function Reservar() {
                   <p className="text-xs text-slate-500">{option.helper}</p>
                 </div>
                 <span
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    selectedMethod === option.id ? 'border-[#5A63F2]' : 'border-slate-200'
-                  }`}
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethod === option.id ? 'border-[#5A63F2]' : 'border-slate-200'
+                    }`}
                 >
                   {selectedMethod === option.id && <span className="w-2 h-2 rounded-full bg-[#5A63F2]" />}
                 </span>
@@ -536,9 +567,8 @@ export function Reservar() {
                   maxLength={4}
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${
-                    cvvError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
-                  }`}
+                  className={`mt-2 w-full border-2 rounded-2xl px-4 py-3 focus:outline-none ${cvvError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#5A63F2]'
+                    }`}
                   placeholder="000"
                 />
                 {cvvError && <p className="text-xs text-red-500 mt-1">{cvvError}</p>}
@@ -627,6 +657,15 @@ export function Reservar() {
               <Calendar size={16} /> Agregar al calendario
             </button>
           </div>
+
+          {/* Botón Contactar Anfitrión */}
+          <button
+            onClick={handleContactHost}
+            className="w-full flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 font-semibold text-sm transition-colors"
+          >
+            <MessageCircle size={18} />
+            Contactar anfitrión
+          </button>
 
           <div className="flex gap-2 sm:gap-3">
             <button
