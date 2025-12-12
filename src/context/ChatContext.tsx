@@ -53,20 +53,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 const getInitialMockConversations = (): IConversation[] => [
     // SOLO conversaciones para conductor (type: 'driver') y soporte
     // Las conversaciones de anfitrión (type: 'host') se crean dinámicamente al aceptar solicitudes
-    {
-        id: 'conv-3',
-        type: 'driver',
-        participantId: 'host-premium',
-        participantName: 'Fernando Reyes',
-        participantPhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face',
-        reservaId: 'reserva-3',
-        parkingId: 5,
-        parkingName: 'Garaje Las Iguanas Premium',
-        lastMessage: 'Perfecto, te espero. El código del portón es 1234.',
-        lastMessageTime: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        unreadCount: 1,
-        isActive: true,
-    },
+    // Fernando Reyes (conv-3) fue eliminado porque aparece como anfitrión en los garajes hardcodeados
     {
         id: 'conv-4',
         type: 'driver',
@@ -94,49 +81,8 @@ const getInitialMockConversations = (): IConversation[] => [
 ];
 
 const getInitialMockMessages = (): IMessage[] => [
-    {
-        id: 'msg-mock-1',
-        conversationId: 'conv-3',
-        senderId: 'current-user',
-        senderName: 'Tú',
-        content: 'Hola, acabo de reservar tu espacio para hoy.',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        isRead: true,
-        isFromCurrentUser: true,
-    },
-    {
-        id: 'msg-mock-2',
-        conversationId: 'conv-3',
-        senderId: 'host-premium',
-        senderName: 'Fernando Reyes',
-        senderPhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
-        content: '¡Hola! Gracias por reservar. ¿A qué hora llegas aproximadamente?',
-        timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
-        isRead: true,
-        isFromCurrentUser: false,
-    },
-    {
-        id: 'msg-mock-3',
-        conversationId: 'conv-3',
-        senderId: 'current-user',
-        senderName: 'Tú',
-        content: 'En unos 30 minutos estoy por ahí.',
-        timestamp: new Date(Date.now() - 1.2 * 60 * 60 * 1000).toISOString(),
-        isRead: true,
-        isFromCurrentUser: true,
-    },
-    {
-        id: 'msg-mock-4',
-        conversationId: 'conv-3',
-        senderId: 'host-premium',
-        senderName: 'Fernando Reyes',
-        senderPhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
-        content: 'Perfecto, te espero. El código del portón es 1234.',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        isRead: false,
-        isFromCurrentUser: false,
-    },
-    // Mensaje de soporte
+    // Mensajes de conv-3 (Fernando Reyes) eliminados porque aparece en garajes hardcodeados
+    // Solo queda el mensaje de soporte
     {
         id: 'msg-mock-6',
         conversationId: 'conv-support',
@@ -148,6 +94,7 @@ const getInitialMockMessages = (): IMessage[] => [
         isFromCurrentUser: false,
     },
 ];
+
 
 // ========== Funciones de Persistencia ==========
 const loadChatData = (): { conversations: IConversation[], messages: IMessage[] } => {
