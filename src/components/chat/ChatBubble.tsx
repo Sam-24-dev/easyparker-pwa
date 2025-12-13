@@ -39,13 +39,13 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         <div className={`flex ${isFromMe ? 'justify-end' : 'justify-start'} mb-3`}>
             <div
                 className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${isFromMe
-                    ? 'bg-indigo-600 text-white rounded-br-md'
+                    ? 'bg-blue-100 text-slate-900 rounded-br-md' // Azul bajito, letras negras
                     : 'bg-slate-100 text-slate-800 rounded-bl-md'
                     }`}
             >
                 <p className="text-sm leading-relaxed">{message.content}</p>
                 <p
-                    className={`text-[10px] mt-1 ${isFromMe ? 'text-indigo-200' : 'text-slate-400'
+                    className={`text-[10px] mt-1 ${isFromMe ? 'text-blue-600/70' : 'text-slate-400'
                         }`}
                 >
                     {formatDateTime(message.timestamp)}

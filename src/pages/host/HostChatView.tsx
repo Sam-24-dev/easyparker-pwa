@@ -1,9 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatBubble } from '../../components/chat/ChatBubble';
 import { ChatInput } from '../../components/chat/ChatInput';
-import { IConversation, IMessage } from '../../types';
 import { useChatContext } from '../../context/ChatContext';
 
 export default function HostChatView() {
@@ -11,8 +10,6 @@ export default function HostChatView() {
     const navigate = useNavigate();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const hasMarkedAsRead = useRef(false);
-    const [messages, setMessages] = useState<IMessage[]>([]);
-    const [conversation, setConversation] = useState<IConversation | null>(null);
 
     const {
         conversations,
@@ -22,36 +19,26 @@ export default function HostChatView() {
         messages: contextMessages
     } = useChatContext();
 
-    // Cargar conversación inicial
+    // Obtener conversación actual directamente del contexto
+    const conversation = conversations.find(c => c.id === conversationId);
+
+    // Obtener mensajes directamente del contexto (rol: host)
+    const messages = conversationId ? getMessagesByConversation(conversationId, 'host') : [];
+
+    // Redirigir si no hay conversationId
     useEffect(() => {
         if (!conversationId) {
             navigate('/host/mensajes');
-            return;
         }
+    }, [conversationId, navigate]);
 
-        // Buscar en el contexto
-        const conv = conversations.find(c => c.id === conversationId);
-        if (conv) {
-            setConversation(conv);
-            setMessages(getMessagesByConversation(conversationId));
-
-            // Marcar como leído solo una vez
-            if (!hasMarkedAsRead.current) {
-                hasMarkedAsRead.current = true;
-                markAsRead(conversationId);
-            }
-        } else {
-            navigate('/host/mensajes');
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conversationId]);
-
-    // Actualizar mensajes cuando cambian en el contexto (para respuestas automáticas)
+    // Marcar como leído
     useEffect(() => {
-        if (conversationId) {
-            setMessages(getMessagesByConversation(conversationId));
+        if (conversationId && conversation && !hasMarkedAsRead.current) {
+            hasMarkedAsRead.current = true;
+            markAsRead(conversationId, 'host');
         }
-    }, [conversationId, contextMessages, getMessagesByConversation]);
+    }, [conversationId, conversation, markAsRead]);
 
     // Reset hasMarkedAsRead cuando cambia la conversación
     useEffect(() => {
@@ -61,13 +48,14 @@ export default function HostChatView() {
     // Scroll al final cuando hay nuevos mensajes
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [contextMessages]);
 
     const handleSendMessage = (content: string) => {
-        sendMessage(conversationId!, content);
+        sendMessage(conversationId!, content, 'host');
     };
 
-    if (!conversation) {
+    // Si no existe la conversación y ya tenemos el ID, redirigir
+    if (!conversation && conversationId) {
         return (
             <div className="min-h-[100dvh] bg-emerald-900">
                 <div className="max-w-md mx-auto min-h-[100dvh] bg-white flex items-center justify-center shadow-2xl">
@@ -77,6 +65,10 @@ export default function HostChatView() {
         );
     }
 
+    if (!conversation) {
+        return null;
+    }
+
     return (
         <div className="min-h-[100dvh] bg-emerald-900">
             <div className="max-w-md mx-auto min-h-[100dvh] bg-slate-50 flex flex-col shadow-2xl">
@@ -84,15 +76,25 @@ export default function HostChatView() {
                 <ChatHeader conversation={conversation} userType="host" />
 
                 {/* Messages container */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
-                    {messages.map((message) => (
-                        <ChatBubble key={message.id} message={message} />
-                    ))}
+                <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
+                    {messages.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                            Envía un mensaje para iniciar la conversación
+                        </div>
+                    ) : (
+                        messages.map((message) => (
+                            <ChatBubble key={message.id} message={message} />
+                        ))
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
-                <ChatInput onSend={handleSendMessage} userType="host" />
+                {/* Input con quick replies */}
+                <ChatInput
+                    onSend={handleSendMessage}
+                    userType="host"
+                    conversationType={conversation.type}
+                />
             </div>
         </div>
     );

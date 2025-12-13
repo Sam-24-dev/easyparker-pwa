@@ -9,7 +9,6 @@ import { useReport } from '../../context/ReportContext';
 import { useChatContext } from '../../context/ChatContext';
 import { RatingModal } from '../../components/rating/RatingModal';
 import { ReportModal } from '../../components/report/ReportModal';
-import { getRandomDriverInitialMessage } from '../../data/chatMock';
 import {
   DollarSign, Calendar, Star, Check, X, User, Car, LogOut,
   Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
@@ -26,7 +25,7 @@ export default function HostDashboard() {
   } = useHost();
   const { user, logout } = useAuth();
   const { userParkings } = useParkingContext();
-  const { createConversationFromRequest, sendInitialMessage } = useChatContext();
+  const { createConversationFromRequest, sendMessage } = useChatContext();
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
@@ -133,9 +132,10 @@ export default function HostDashboard() {
       const netEarning = (request.totalPrice * 0.9).toFixed(2);
       setToast({ message: `+$${netEarning} ganados (neto)`, type: 'success' });
 
-      // Crear conversación con el conductor
+      // Crear conversación con el conductor (chat REAL - sin mensajes automáticos)
+      // La conversación se crea vacía, ambos pueden escribir manualmente
       if (request.driverId) {
-        const conversation = createConversationFromRequest({
+        const newConv = createConversationFromRequest({
           driverId: request.driverId,
           driverName: request.driverName,
           driverPhoto: request.driverImage,
@@ -144,14 +144,10 @@ export default function HostDashboard() {
           requestId: request.id,
         });
 
-        // El conductor envía un mensaje inicial automático
-        setTimeout(() => {
-          sendInitialMessage(
-            conversation.id,
-            getRandomDriverInitialMessage(),
-            { id: request.driverId!, name: request.driverName, photo: request.driverImage }
-          );
-        }, 1000);
+        // Enviar mensaje automático de bienvenida del anfitrión
+        const welcomeMsg = "¡Bienvenido! He aceptado tu solicitud. El espacio está listo.";
+        sendMessage(newConv.id, welcomeMsg, 'host');
+
       }
     } else {
       setToast({ message: 'Solicitud rechazada - 60s para recuperar', type: 'error' });

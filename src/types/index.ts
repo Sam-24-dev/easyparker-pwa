@@ -130,10 +130,11 @@ export interface IMessage {
   senderId: string;
   senderName: string;
   senderPhoto?: string;
+  senderType?: 'driver' | 'host' | 'support'; // Nuevo campo para identificar el rol del remitente
   content: string;
   timestamp: string;
   isRead: boolean;
-  isFromCurrentUser: boolean;
+  isFromCurrentUser?: boolean; // Ahora opcional/calculado
 }
 
 export interface IConversation {
@@ -142,6 +143,14 @@ export interface IConversation {
   participantId: string;
   participantName: string;
   participantPhoto?: string;
+  // Campos para identificar ambas partes en chats reales
+  driverId?: string;
+  driverName?: string;
+  driverPhoto?: string;
+  hostId?: string;
+  hostName?: string;
+  hostPhoto?: string;
+  // Otros campos
   reservaId?: string;
   parkingId?: number;
   parkingName?: string;
@@ -149,5 +158,9 @@ export interface IConversation {
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
+  unreadCountDriver?: number; // Nuevo: contador específico para conductor
+  unreadCountHost?: number;   // Nuevo: contador específico para anfitrión
   isActive: boolean;
+  isRealChat?: boolean; // true = chat real sin auto-reply (garaje reclamado/creado), false/undefined = mock con auto-reply
 }
+

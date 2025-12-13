@@ -17,12 +17,26 @@ export function ConversationList({ filter, userType }: ConversationListProps) {
     const filteredConversations = useMemo(() => {
         let convs = [...conversations];
 
-        // Para conductor: mostrar solo conversaciones con anfitriones (type: 'driver') y soporte
-        // Para anfitrión: mostrar solo conversaciones con conductores (type: 'host') y soporte
+        // Para conductor: mostrar conversaciones donde:
+        // - type === 'driver' (conversaciones tradicionales con anfitriones)
+        // - O es su chat de soporte
+        // - O es una conversación real donde él es el driverId
         if (userType === 'driver') {
-            convs = convs.filter(c => c.type === 'driver' || c.type === 'support');
+            convs = convs.filter(c =>
+                c.type === 'driver' ||
+                (c.type === 'support' && c.id === 'conv-support-driver') ||
+                (c.isRealChat && c.driverId === 'current-user')
+            );
         } else {
-            convs = convs.filter(c => c.type === 'host' || c.type === 'support');
+            // Para anfitrión: mostrar conversaciones donde:
+            // - type === 'host' (conversaciones tradicionales con conductores)
+            // - O es su chat de soporte
+            // - O es una conversación real donde él es el hostId (viene de reservas de su garaje)
+            convs = convs.filter(c =>
+                c.type === 'host' ||
+                (c.type === 'support' && c.id === 'conv-support-host') ||
+                (c.isRealChat && c.hostId)
+            );
         }
 
         // Aplicar filtro adicional
@@ -74,6 +88,7 @@ export function ConversationList({ filter, userType }: ConversationListProps) {
                     key={conversation.id}
                     conversation={conversation}
                     onClick={() => handleConversationClick(conversation.id)}
+                    userType={userType}
                 />
             ))}
         </div>

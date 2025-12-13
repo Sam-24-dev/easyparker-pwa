@@ -17,7 +17,7 @@ export function BottomNav() {
   const { getReservasActivas } = useReservaContext();
   const { getTotalUnreadCount } = useChatContext();
   const activeReservations = getReservasActivas().length;
-  const unreadMessages = getTotalUnreadCount();
+  const unreadMessages = getTotalUnreadCount('driver');
 
   const isActive = (to: string) => {
     if (to === '/buscar') {

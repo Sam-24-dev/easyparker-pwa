@@ -3,10 +3,14 @@ import { IConversation } from '../../types';
 interface ConversationCardProps {
     conversation: IConversation;
     onClick: () => void;
+    userType?: 'driver' | 'host';
 }
 
-export function ConversationCard({ conversation, onClick }: ConversationCardProps) {
+export function ConversationCard({ conversation, onClick, userType = 'driver' }: ConversationCardProps) {
     const isSupport = conversation.type === 'support';
+
+    // Calcular contador de no leídos apropiado
+    const unreadCount = (userType === 'host' ? conversation.unreadCountHost : conversation.unreadCountDriver) ?? conversation.unreadCount;
 
     // Formatear fecha
     const formatDate = (dateString: string) => {
@@ -47,10 +51,10 @@ export function ConversationCard({ conversation, onClick }: ConversationCardProp
                 )}
 
                 {/* Badge de no leídos */}
-                {conversation.unreadCount > 0 && (
+                {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-rose-500 text-[11px] font-bold text-white flex items-center justify-center px-1.5">
-                        {Math.min(conversation.unreadCount, 9)}
-                        {conversation.unreadCount > 9 && '+'}
+                        {Math.min(unreadCount, 9)}
+                        {unreadCount > 9 && '+'}
                     </span>
                 )}
             </div>
@@ -58,7 +62,7 @@ export function ConversationCard({ conversation, onClick }: ConversationCardProp
             {/* Contenido */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                    <h3 className={`font-semibold truncate ${conversation.unreadCount > 0 ? 'text-slate-900' : 'text-slate-700'}`}>
+                    <h3 className={`font-semibold truncate ${unreadCount > 0 ? 'text-slate-900' : 'text-slate-700'}`}>
                         {isSupport ? 'Atención EasyParker' : conversation.participantName}
                     </h3>
                     <span className="text-xs text-slate-400 flex-shrink-0">

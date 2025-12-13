@@ -5,7 +5,7 @@ import { useChatContext } from '../../context/ChatContext';
 export function HostBottomNav() {
   const location = useLocation();
   const { getTotalUnreadCount } = useChatContext();
-  const unreadMessages = getTotalUnreadCount();
+  const unreadMessages = getTotalUnreadCount('host');
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 

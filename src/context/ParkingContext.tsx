@@ -123,10 +123,10 @@ const saveClaimedState = (state: Record<number, ClaimedParkingState>) => {
 export function ParkingProvider({ children }: { children: React.ReactNode }) {
   // Parqueos creados por el usuario (persistidos en localStorage)
   const [userParkings, setUserParkings] = useState<IParking[]>(() => readUserParkings());
-  
+
   // IDs de parqueos estáticos reclamados por el usuario
   const [claimedParkingIds, setClaimedParkingIds] = useState<number[]>(() => readClaimedParkingIds());
-  
+
   // Estado de parqueos reclamados (activo/pausado + ownerName + datos editados)
   const [claimedState, setClaimedState] = useState<Record<number, ClaimedParkingState>>(() => readClaimedState());
 
@@ -138,8 +138,10 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
       return {
         ...p,
         claimedBy: 'Propietario',
+        claimedFromId: p.id, // <-- Añadir este campo para identificar como reclamado
         isActive: state.isActive !== false, // Por defecto activos
         ownerName: state.ownerName || 'Propietario',
+        ownerId: 'current-user', // <-- El anfitrión actual es el dueño
         verificado: true, // Reclamados pasan por verificación
         // Campos editables
         descripcion: state.descripcion ?? p.descripcion,
@@ -148,7 +150,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
         horario: state.horario ?? p.horario,
         seguridad: state.seguridad ?? p.seguridad,
         accesiblePMR: state.accesiblePMR ?? p.accesiblePMR,
-        vehiculosPermitidos: state.vehiculosPermitidos ?? p.vehiculosPermitidos,
+        vehiculosPermitidos: (state.vehiculosPermitidos ?? p.vehiculosPermitidos) as typeof p.vehiculosPermitidos,
       };
     });
 
@@ -180,8 +182,10 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
         return {
           ...p,
           claimedBy: 'Propietario',
+          claimedFromId: p.id, // <-- Añadir para identificar como reclamado
           isActive: state.isActive !== false,
           ownerName: state.ownerName || 'Propietario',
+          ownerId: 'current-user', // <-- El anfitrión actual es el dueño
           verificado: true,
           // Campos editables
           descripcion: state.descripcion ?? p.descripcion,
@@ -190,7 +194,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
           horario: state.horario ?? p.horario,
           seguridad: state.seguridad ?? p.seguridad,
           accesiblePMR: state.accesiblePMR ?? p.accesiblePMR,
-          vehiculosPermitidos: state.vehiculosPermitidos ?? p.vehiculosPermitidos,
+          vehiculosPermitidos: (state.vehiculosPermitidos ?? p.vehiculosPermitidos) as typeof p.vehiculosPermitidos,
         };
       });
 
@@ -212,7 +216,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userParkings, claimedParkingIds, claimedState]);
 
   const [filtros, setFiltros] = useState<IFiltros>(() => {
@@ -299,7 +303,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
     // Generar ID único que no colisione con los 35 estáticos (1-35)
     // Usamos 1000 + timestamp para garantizar unicidad
     const newId = 1000 + (Date.now() % 1000000);
-    
+
     const newParking: IParking = {
       ...parkingData,
       id: newId,
@@ -340,10 +344,10 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    
+
     // Si es un parqueo creado por el usuario
     setUserParkings(prev => {
-      const updated = prev.map(p => 
+      const updated = prev.map(p =>
         p.id === id ? { ...p, ...data } : p
       );
       saveUserParkings(updated);
@@ -369,7 +373,7 @@ export function ParkingProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    
+
     // Si es un parqueo creado por el usuario
     setUserParkings(prev => {
       const updated = prev.filter(p => p.id !== id);

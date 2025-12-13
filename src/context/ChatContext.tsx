@@ -1,6 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { IMessage, IConversation } from '../types';
-import { getRandomHostResponse, getRandomDriverMessage, getRandomSupportResponse } from '../data/chatMock';
+import {
+    getSmartDriverResponse,
+    getSmartHostResponse,
+    getSmartSupportResponse
+} from '../data/chatMock';
 
 // ========== Constantes ==========
 const CHAT_STORAGE_KEY = 'easyparker-chat-data';
@@ -24,6 +28,7 @@ interface ChatContextType {
         parkingId: number;
         parkingName: string;
         reservaId: string;
+        isRealChat?: boolean; // true si es garaje reclamado/creado
     }) => IConversation;
 
     createConversationFromRequest: (params: {
@@ -36,14 +41,14 @@ interface ChatContextType {
     }) => IConversation;
 
     // Acciones de mensajes
-    getMessagesByConversation: (conversationId: string) => IMessage[];
-    sendMessage: (conversationId: string, content: string) => void;
-    sendInitialMessage: (conversationId: string, content: string, senderInfo: { id: string; name: string; photo?: string }) => void;
-    markAsRead: (conversationId: string) => void;
+    getMessagesByConversation: (conversationId: string, viewerRole?: 'driver' | 'host') => IMessage[];
+    sendMessage: (conversationId: string, content: string, role?: 'driver' | 'host', skipAutoReply?: boolean) => void;
+    sendInitialMessage: (conversationId: string, content: string, senderInfo: { id: string; name: string; photo?: string }, role?: 'driver' | 'host') => void;
+    markAsRead: (conversationId: string, role?: 'driver' | 'host') => void;
 
     // Contadores
-    getTotalUnreadCount: () => number;
-    getUnreadCountByType: (type: 'host' | 'driver' | 'support') => number;
+    getTotalUnreadCount: (role?: 'driver' | 'host') => number;
+    getUnreadCountByType: (type: 'host' | 'driver' | 'support', role?: 'driver' | 'host') => number;
 }
 
 // ========== Contexto ==========
@@ -51,9 +56,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 // ========== Datos Mock Iniciales ==========
 const getInitialMockConversations = (): IConversation[] => [
-    // SOLO conversaciones para conductor (type: 'driver') y soporte
-    // Las conversaciones de anfitrión (type: 'host') se crean dinámicamente al aceptar solicitudes
-    // Fernando Reyes (conv-3) fue eliminado porque aparece como anfitrión en los garajes hardcodeados
+    // Conversación ejemplo para conductor con anfitrión
     {
         id: 'conv-4',
         type: 'driver',
@@ -68,12 +71,24 @@ const getInitialMockConversations = (): IConversation[] => [
         unreadCount: 0,
         isActive: false,
     },
+    // Chat de soporte SEPARADO para conductor
     {
-        id: 'conv-support',
+        id: 'conv-support-driver',
         type: 'support',
-        participantId: 'easyparker-support',
+        participantId: 'easyparker-support-driver',
         participantName: 'Atención EasyParker',
         lastMessage: '¡Hola! ¿En qué puedo ayudarte hoy?',
+        lastMessageTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        unreadCount: 0,
+        isActive: true,
+    },
+    // Chat de soporte SEPARADO para anfitrión
+    {
+        id: 'conv-support-host',
+        type: 'support',
+        participantId: 'easyparker-support-host',
+        participantName: 'Atención EasyParker',
+        lastMessage: '¡Hola anfitrión! ¿En qué puedo ayudarte hoy?',
         lastMessageTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         unreadCount: 0,
         isActive: true,
@@ -81,14 +96,36 @@ const getInitialMockConversations = (): IConversation[] => [
 ];
 
 const getInitialMockMessages = (): IMessage[] => [
-    // Mensajes de conv-3 (Fernando Reyes) eliminados porque aparece en garajes hardcodeados
-    // Solo queda el mensaje de soporte
+    // Mensajes para conversación con Patricia Morales
     {
-        id: 'msg-mock-6',
-        conversationId: 'conv-support',
-        senderId: 'easyparker-support',
+        id: 'msg-mock-patricia-1',
+        conversationId: 'conv-4',
+        senderId: 'host-ceibos',
+        senderName: 'Patricia Morales',
+        senderPhoto: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=face',
+        content: 'Hola! Bienvenido, cualquier cosa me avisas.',
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        isRead: true,
+        isFromCurrentUser: false,
+    },
+    // Mensaje inicial de soporte para conductor
+    {
+        id: 'msg-mock-support-driver-1',
+        conversationId: 'conv-support-driver',
+        senderId: 'easyparker-support-driver',
         senderName: 'Atención EasyParker',
         content: '¡Hola! ¿En qué puedo ayudarte hoy?',
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        isRead: true,
+        isFromCurrentUser: false,
+    },
+    // Mensaje inicial de soporte para anfitrión
+    {
+        id: 'msg-mock-support-host-1',
+        conversationId: 'conv-support-host',
+        senderId: 'easyparker-support-host',
+        senderName: 'Atención EasyParker',
+        content: '¡Hola anfitrión! ¿En qué puedo ayudarte hoy?',
         timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         isRead: true,
         isFromCurrentUser: false,
@@ -102,9 +139,41 @@ const loadChatData = (): { conversations: IConversation[], messages: IMessage[] 
         const stored = localStorage.getItem(CHAT_STORAGE_KEY);
         if (stored) {
             const data = JSON.parse(stored);
-            // Si hay datos guardados, usarlos
+            // Si hay datos guardados con conversaciones, usarlos
             if (data.conversations && data.conversations.length > 0) {
-                return data;
+                // Migrar de conv-support antiguo a los nuevos IDs separados
+                const migratedConversations = data.conversations.map((c: IConversation) => {
+                    if (c.id === 'conv-support') {
+                        return { ...c, id: 'conv-support-driver', participantId: 'easyparker-support-driver' };
+                    }
+                    return c;
+                });
+
+                // Migrar mensajes también
+                const migratedMessages = (data.messages || []).map((m: IMessage) => {
+                    if (m.conversationId === 'conv-support') {
+                        return { ...m, conversationId: 'conv-support-driver' };
+                    }
+                    return m;
+                });
+
+                // Asegurar que existan ambos chats de soporte
+                const hasDriverSupport = migratedConversations.some((c: IConversation) => c.id === 'conv-support-driver');
+                const hasHostSupport = migratedConversations.some((c: IConversation) => c.id === 'conv-support-host');
+
+                if (!hasDriverSupport) {
+                    migratedConversations.push(getInitialMockConversations().find(c => c.id === 'conv-support-driver')!);
+                    migratedMessages.push(getInitialMockMessages().find(m => m.conversationId === 'conv-support-driver')!);
+                }
+                if (!hasHostSupport) {
+                    migratedConversations.push(getInitialMockConversations().find(c => c.id === 'conv-support-host')!);
+                    migratedMessages.push(getInitialMockMessages().find(m => m.conversationId === 'conv-support-host')!);
+                }
+
+                return {
+                    conversations: migratedConversations,
+                    messages: migratedMessages
+                };
             }
         }
     } catch (error) {
@@ -117,23 +186,24 @@ const loadChatData = (): { conversations: IConversation[], messages: IMessage[] 
     };
 };
 
-const saveChatData = (conversations: IConversation[], messages: IMessage[]) => {
-    try {
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ conversations, messages }));
-    } catch (error) {
-        console.warn('Error saving chat data:', error);
-    }
-};
-
 // ========== Provider ==========
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [conversations, setConversations] = useState<IConversation[]>(() => loadChatData().conversations);
     const [messages, setMessages] = useState<IMessage[]>(() => loadChatData().messages);
 
+    // Guardar en localStorage cada vez que cambian conversations o messages
+    useEffect(() => {
+        try {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ conversations, messages }));
+        } catch (error) {
+            console.warn('Error saving chat data:', error);
+        }
+    }, [conversations, messages]);
+
     // Obtener conversaciones filtradas
     const getConversations = useCallback((type?: 'all' | 'host' | 'driver' | 'support') => {
         if (!type || type === 'all') {
-            return conversations.sort((a, b) =>
+            return [...conversations].sort((a, b) =>
                 new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
             );
         }
@@ -156,16 +226,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             id: `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         };
 
-        setConversations(prev => {
-            const updated = [newConversation, ...prev];
-            saveChatData(updated, messages);
-            return updated;
-        });
-
+        setConversations(prev => [newConversation, ...prev]);
         return newConversation;
-    }, [messages]);
+    }, []);
 
     // Crear conversación cuando un conductor hace una reserva
+    // Esta conversación será visible para AMBOS: conductor y anfitrión
     const createConversationFromReserva = useCallback((params: {
         hostId: string;
         hostName: string;
@@ -173,6 +239,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         parkingId: number;
         parkingName: string;
         reservaId: string;
+        isRealChat?: boolean; // true si es garaje reclamado/creado
+        driverId?: string;
+        driverName?: string;
+        driverPhoto?: string;
     }) => {
         // Verificar si ya existe una conversación para esta reserva
         const existing = conversations.find(c => c.reservaId === params.reservaId);
@@ -180,10 +250,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const newConversation: IConversation = {
             id: `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            type: 'driver', // El conductor ve conversaciones con anfitriones
+            type: 'driver', // Tipo base: el conductor lo ve como chat con anfitrión
             participantId: params.hostId,
             participantName: params.hostName,
             participantPhoto: params.hostPhoto,
+            // Guardar info de ambos lados para visibilidad cruzada
+            hostId: params.hostId,
+            hostName: params.hostName,
+            hostPhoto: params.hostPhoto,
+            driverId: params.driverId || 'current-user',
+            driverName: params.driverName || 'Conductor',
+            driverPhoto: params.driverPhoto,
+            // Otros campos
             reservaId: params.reservaId,
             parkingId: params.parkingId,
             parkingName: params.parkingName,
@@ -191,18 +269,17 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             lastMessageTime: new Date().toISOString(),
             unreadCount: 0,
             isActive: true,
+            isRealChat: params.isRealChat || false, // Chat real si es garaje reclamado/creado
         };
 
-        setConversations(prev => {
-            const updated = [newConversation, ...prev];
-            saveChatData(updated, messages);
-            return updated;
-        });
-
+        setConversations(prev => [newConversation, ...prev]);
         return newConversation;
-    }, [conversations, messages]);
+    }, [conversations]);
+
 
     // Crear conversación cuando un anfitrión acepta una solicitud
+    // SIEMPRE es chat real porque el anfitrión tiene que haber reclamado/creado el garaje
+    // Esta conversación será visible para AMBOS: anfitrión y conductor
     const createConversationFromRequest = useCallback((params: {
         driverId: string;
         driverName: string;
@@ -210,6 +287,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         parkingId: number;
         parkingName: string;
         requestId: string;
+        hostId?: string;
+        hostName?: string;
+        hostPhoto?: string;
     }) => {
         // Verificar si ya existe una conversación para esta solicitud
         const existing = conversations.find(c => c.reservaId === params.requestId);
@@ -221,6 +301,14 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             participantId: params.driverId,
             participantName: params.driverName,
             participantPhoto: params.driverPhoto,
+            // Guardar info de ambos lados para visibilidad cruzada
+            driverId: params.driverId,
+            driverName: params.driverName,
+            driverPhoto: params.driverPhoto,
+            hostId: params.hostId || 'current-user',
+            hostName: params.hostName || 'Anfitrión',
+            hostPhoto: params.hostPhoto,
+            // Otros campos
             reservaId: params.requestId,
             parkingId: params.parkingId,
             parkingName: params.parkingName,
@@ -228,22 +316,19 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             lastMessageTime: new Date().toISOString(),
             unreadCount: 0,
             isActive: true,
+            isRealChat: true, // Siempre real porque el anfitrión tiene el garaje
         };
 
-        setConversations(prev => {
-            const updated = [newConversation, ...prev];
-            saveChatData(updated, messages);
-            return updated;
-        });
-
+        setConversations(prev => [newConversation, ...prev]);
         return newConversation;
-    }, [conversations, messages]);
+    }, [conversations]);
 
     // Enviar mensaje inicial (desde otro usuario, no el actual)
     const sendInitialMessage = useCallback((
         conversationId: string,
         content: string,
-        senderInfo: { id: string; name: string; photo?: string }
+        senderInfo: { id: string; name: string; photo?: string },
+        role?: 'driver' | 'host'
     ) => {
         const newMessage: IMessage = {
             id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -251,73 +336,97 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             senderId: senderInfo.id,
             senderName: senderInfo.name,
             senderPhoto: senderInfo.photo,
+            senderType: role,
             content,
             timestamp: new Date().toISOString(),
             isRead: false,
             isFromCurrentUser: false,
         };
 
-        setMessages(prev => {
-            const updated = [...prev, newMessage];
-            saveChatData(conversations, updated);
-            return updated;
-        });
-
-        setConversations(prev => {
-            const updated = prev.map(c =>
+        setMessages(prev => [...prev, newMessage]);
+        setConversations(prev =>
+            prev.map(c =>
                 c.id === conversationId
                     ? {
                         ...c,
                         lastMessage: content,
                         lastMessageTime: new Date().toISOString(),
-                        unreadCount: c.unreadCount + 1
+                        unreadCount: c.unreadCount + 1, // Legacy
+                        unreadCountDriver: role === 'host' ? (c.unreadCountDriver || 0) + 1 : (c.unreadCountDriver || 0),
+                        unreadCountHost: role === 'driver' ? (c.unreadCountHost || 0) + 1 : (c.unreadCountHost || 0),
                     }
                     : c
-            );
-            saveChatData(updated, messages);
-            return updated;
-        });
-    }, [conversations, messages]);
+            )
+        );
+    }, []);
 
     // Obtener mensajes de una conversación
-    const getMessagesByConversation = useCallback((conversationId: string) => {
+    const getMessagesByConversation = useCallback((conversationId: string, viewerRole?: 'driver' | 'host') => {
         return messages
             .filter(m => m.conversationId === conversationId)
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .map(m => {
+                // Calcular si es del usuario actual basado en el rol del visualizador
+                let isFromCurrentUser = m.isFromCurrentUser; // Fallback para mensajes antiguos
+
+                if (viewerRole && m.senderType) {
+                    isFromCurrentUser = m.senderType === viewerRole;
+                } else if (viewerRole) {
+                    // Fallback para mensajes sin senderType
+                    if (viewerRole === 'driver') {
+                        // Si soy conductor, mensajes de 'host' o 'support' NO son míos
+                        isFromCurrentUser = m.senderId === 'current-user' || m.senderId === 'driver-id';
+                    } else {
+                        // Si soy anfitrión, mensajes de 'driver' NO son míos
+                        isFromCurrentUser = m.senderId === 'current-user' || m.senderId === 'host-id';
+                    }
+                }
+
+                return { ...m, isFromCurrentUser };
+            });
     }, [messages]);
 
     // Enviar mensaje
-    const sendMessage = useCallback((conversationId: string, content: string) => {
+    const sendMessage = useCallback((conversationId: string, content: string, role: 'driver' | 'host' = 'driver', skipAutoReply: boolean = false) => {
         const newMessage: IMessage = {
             id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             conversationId,
-            senderId: 'current-user',
-            senderName: 'Tú',
+            senderId: role === 'driver' ? 'driver-id' : 'host-id',
+            senderName: role === 'driver' ? 'Tú (Conductor)' : 'Tú (Anfitrión)',
+            senderType: role, // 'driver' o 'host'
             content,
             timestamp: new Date().toISOString(),
             isRead: true,
-            isFromCurrentUser: true,
+            isFromCurrentUser: true, // Se guardará como true, pero getMessages recalculará
         };
 
-        setMessages(prev => {
-            const updated = [...prev, newMessage];
-            saveChatData(conversations, updated);
-            return updated;
-        });
+        setMessages(prev => [...prev, newMessage]);
 
         // Actualizar última conversación
-        setConversations(prev => {
-            const updated = prev.map(c =>
-                c.id === conversationId
-                    ? { ...c, lastMessage: content, lastMessageTime: new Date().toISOString() }
-                    : c
-            );
-            saveChatData(updated, messages);
-            return updated;
-        });
+        setConversations(prev =>
+            prev.map(c => {
+                if (c.id !== conversationId) return c;
+
+                const isSupport = c.type === 'support';
+
+                return {
+                    ...c,
+                    lastMessage: content,
+                    lastMessageTime: new Date().toISOString(),
+                    unreadCount: c.unreadCount + 1, // Legacy
+                    unreadCountDriver: (!isSupport && role === 'host') ? (c.unreadCountDriver || 0) + 1 : (c.unreadCountDriver || 0),
+                    unreadCountHost: (!isSupport && role === 'driver') ? (c.unreadCountHost || 0) + 1 : (c.unreadCountHost || 0),
+                };
+            })
+        );
+
+        // Buscar la conversación
+        const conversation = conversations.find(c => c.id === conversationId);
+
+        // Si skipAutoReply es true, no enviar auto-reply (permitimos auto-reply en chats reales para la demo)
+        if (skipAutoReply) return;
 
         // Respuesta automática mock después de 2-3 segundos
-        const conversation = conversations.find(c => c.id === conversationId);
         if (conversation) {
             const delay = 2000 + Math.random() * 1000; // 2-3 segundos
 
@@ -326,17 +435,17 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 let senderName: string;
                 let senderPhoto: string | undefined;
 
-                if (conversation.type === 'support') {
-                    responseContent = getRandomSupportResponse();
+                if (conversation.type === 'support' || conversation.id.includes('support')) {
+                    responseContent = getSmartSupportResponse(content); // Usar respuesta inteligente
                     senderName = 'Atención EasyParker';
-                } else if (conversation.type === 'host') {
-                    // El usuario es anfitrión, respuesta del conductor
-                    responseContent = getRandomDriverMessage();
+                } else if (conversation.type === 'host' || role === 'host') {
+                    // El usuario es anfitrión (o sender es Host), respuesta del conductor (inteligente)
+                    responseContent = getSmartDriverResponse(content);
                     senderName = conversation.participantName;
                     senderPhoto = conversation.participantPhoto;
                 } else {
-                    // El usuario es conductor, respuesta del anfitrión
-                    responseContent = getRandomHostResponse();
+                    // El usuario es conductor (o sender es Driver), respuesta del anfitrión (inteligente)
+                    responseContent = getSmartHostResponse(content);
                     senderName = conversation.participantName;
                     senderPhoto = conversation.participantPhoto;
                 }
@@ -353,61 +462,93 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     isFromCurrentUser: false,
                 };
 
-                setMessages(prev => {
-                    const updated = [...prev, autoReply];
-                    saveChatData(conversations, updated);
-                    return updated;
-                });
+                setMessages(prev => [...prev, autoReply]);
 
-                setConversations(prev => {
-                    const updated = prev.map(c =>
+                setConversations(prev =>
+                    prev.map(c =>
                         c.id === conversationId
                             ? {
                                 ...c,
                                 lastMessage: responseContent,
                                 lastMessageTime: new Date().toISOString(),
-                                unreadCount: c.unreadCount + 1
+                                unreadCount: c.unreadCount + 1,
+                                unreadCountDriver: role === 'driver' ? (c.unreadCountDriver || 0) + 1 : (c.unreadCountDriver || 0),
+                                unreadCountHost: role === 'host' ? (c.unreadCountHost || 0) + 1 : (c.unreadCountHost || 0),
                             }
                             : c
-                    );
-                    saveChatData(updated, messages);
-                    return updated;
-                });
+                    )
+                );
             }, delay);
         }
-    }, [conversations, messages]);
+    }, [conversations]);
+
+
 
     // Marcar conversación como leída
-    const markAsRead = useCallback((conversationId: string) => {
+    const markAsRead = useCallback((conversationId: string, role?: 'driver' | 'host') => {
         // Marcar mensajes como leídos
-        setMessages(prev => {
-            const updated = prev.map(m =>
+        setMessages(prev =>
+            prev.map(m =>
                 m.conversationId === conversationId ? { ...m, isRead: true } : m
-            );
-            saveChatData(conversations, updated);
-            return updated;
-        });
+            )
+        );
 
         // Resetear contador de no leídos
-        setConversations(prev => {
-            const updated = prev.map(c =>
-                c.id === conversationId ? { ...c, unreadCount: 0 } : c
-            );
-            saveChatData(updated, messages);
-            return updated;
-        });
-    }, [conversations, messages]);
+        setConversations(prev =>
+            prev.map(c => {
+                if (c.id !== conversationId) return c;
+
+                // Si no hay rol, reseteamos el legacy (comportamiento anterior)
+                if (!role) return { ...c, unreadCount: 0 };
+
+                return {
+                    ...c,
+                    unreadCount: 0, // Legacy reset
+                    unreadCountDriver: role === 'driver' ? 0 : c.unreadCountDriver,
+                    unreadCountHost: role === 'host' ? 0 : c.unreadCountHost,
+                };
+            })
+        );
+    }, []);
 
     // Obtener total de mensajes no leídos
-    const getTotalUnreadCount = useCallback(() => {
-        return conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+    const getTotalUnreadCount = useCallback((role?: 'driver' | 'host') => {
+        return conversations.reduce((sum, c) => {
+            if (role === 'host') {
+                // Si estoy en modo HOST, solo cuento:
+                // 1. Chats de tipo 'host' (donde soy el anfitrión)
+                // 2. Chats de soporte de anfitrión
+                // IGNORO chats 'driver' (donde soy el conductor hablándole a otro anfitrión)
+                if (c.type === 'driver' || c.id.includes('support-driver')) return sum;
+                return sum + (c.unreadCountHost || 0);
+            }
+            if (role === 'driver') {
+                // Si estoy en modo DRIVER, solo cuento:
+                // 1. Chats de tipo 'driver' (donde soy el conductor)
+                // 2. Chats de soporte de conductor
+                // IGNORO chats 'host' (donde soy el anfitrión atendiéndo a un conductor)
+                if (c.type === 'host' || c.id.includes('support-host')) return sum;
+                return sum + (c.unreadCountDriver || 0);
+            }
+            return sum + c.unreadCount;
+        }, 0);
     }, [conversations]);
 
     // Obtener no leídos por tipo
-    const getUnreadCountByType = useCallback((type: 'host' | 'driver' | 'support') => {
+    const getUnreadCountByType = useCallback((type: 'host' | 'driver' | 'support', role?: 'driver' | 'host') => {
         return conversations
             .filter(c => c.type === type)
-            .reduce((sum, c) => sum + c.unreadCount, 0);
+            .reduce((sum, c) => {
+                if (role === 'host') {
+                    if (c.type === 'driver' || c.id.includes('support-driver')) return sum;
+                    return sum + (c.unreadCountHost || 0);
+                }
+                if (role === 'driver') {
+                    if (c.type === 'host' || c.id.includes('support-host')) return sum;
+                    return sum + (c.unreadCountDriver || 0);
+                }
+                return sum + c.unreadCount;
+            }, 0);
     }, [conversations]);
 
     return (

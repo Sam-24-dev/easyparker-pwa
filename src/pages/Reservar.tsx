@@ -280,6 +280,10 @@ export function Reservar() {
 
     agregarReserva(nuevaReserva);
 
+    // Determinar si es chat real: true si el garaje fue reclamado (claimedFromId) o creado por el anfitrión (ID >= 1000)
+    // Los 35 parqueos estáticos (ID 1-35) NO tienen claimedFromId y su chat es mock
+    const isRealChat = !!parking.claimedFromId || parking.id >= 1000;
+
     // Crear conversación con el anfitrión
     const conversation = createConversationFromReserva({
       hostId: parking.ownerId || `host-${parking.id}`,
@@ -288,19 +292,24 @@ export function Reservar() {
       parkingId: parking.id,
       parkingName: parking.nombre,
       reservaId: code,
+      isRealChat, // Solo es real si el garaje fue reclamado/creado
     });
 
     // Guardar el ID de la conversación para navegar después
     setConversationId(conversation.id);
 
-    // El anfitrión envía un mensaje de bienvenida automático
-    setTimeout(() => {
-      sendInitialMessage(
-        conversation.id,
-        getRandomHostWelcomeMessage(),
-        { id: parking.ownerId || `host-${parking.id}`, name: parking.ownerName || 'Anfitrión', photo: parking.ownerPhoto }
-      );
-    }, 1000);
+    // Solo enviar mensaje automático del anfitrión si es chat MOCK (parqueo estático)
+    // Si es chat REAL (garaje reclamado/creado), el anfitrión enviará el mensaje manualmente
+    if (!isRealChat) {
+      setTimeout(() => {
+        sendInitialMessage(
+          conversation.id,
+          getRandomHostWelcomeMessage(),
+          { id: parking.ownerId || `host-${parking.id}`, name: parking.ownerName || 'Anfitrión', photo: parking.ownerPhoto },
+          'host'
+        );
+      }, 1000);
+    }
 
     setStep(4);
   };
@@ -658,14 +667,28 @@ export function Reservar() {
             </button>
           </div>
 
-          {/* Botón Contactar Anfitrión */}
-          <button
-            onClick={handleContactHost}
-            className="w-full flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 font-semibold text-sm transition-colors"
-          >
-            <MessageCircle size={18} />
-            Contactar anfitrión
-          </button>
+          {/* Mensaje o Botón según tipo de garaje */}
+          {(!!parking.claimedFromId || parking.id >= 1000) ? (
+            // Garaje reclamado/creado - botón para contactar
+            <button
+              onClick={handleContactHost}
+              className="w-full flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 font-semibold text-sm transition-colors"
+            >
+              <MessageCircle size={18} />
+              Contactar anfitrión
+            </button>
+          ) : (
+            // Parqueo estático - solo mensaje informativo
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl sm:rounded-2xl p-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-indigo-700 font-semibold text-sm mb-1">
+                <MessageCircle size={18} />
+                ¡El anfitrión se contactará contigo!
+              </div>
+              <p className="text-xs text-indigo-600">
+                Recibirás un mensaje cuando el anfitrión confirme tu llegada.
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-2 sm:gap-3">
             <button
