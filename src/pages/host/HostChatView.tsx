@@ -21,7 +21,6 @@ export default function HostChatView() {
 
     // Obtener conversación actual directamente del contexto
     const conversation = conversations.find(c => c.id === conversationId);
-
     // Obtener mensajes directamente del contexto (rol: host)
     const messages = conversationId ? getMessagesByConversation(conversationId, 'host') : [];
 
@@ -29,6 +28,7 @@ export default function HostChatView() {
     useEffect(() => {
         if (!conversationId) {
             navigate('/host/mensajes');
+            return;
         }
     }, [conversationId, navigate]);
 

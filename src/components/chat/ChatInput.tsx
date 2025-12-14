@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Send } from 'lucide-react';
-import { driverQuickReplies, hostQuickReplies, hostSupportQuickReplies, driverSupportQuickReplies } from '../../data/chatMock';
+import { driverQuickReplies, hostQuickReplies, supportQuickReplies, hostSupportQuickReplies, driverSupportQuickReplies } from '../../data/chatMock';
 
 interface ChatInputProps {
     onSend: (message: string) => void;
@@ -21,7 +21,7 @@ export function ChatInput({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (message.trim() && !disabled) {
+        if (message.trim()) {
             onSend(message.trim());
             setMessage('');
         }
@@ -30,7 +30,7 @@ export function ChatInput({
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            handleSubmit(e as any);
         }
     };
 

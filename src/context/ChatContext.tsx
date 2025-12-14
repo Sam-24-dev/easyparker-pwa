@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { IMessage, IConversation } from '../types';
+import { useNotification } from './NotificationContext';
 import {
     getSmartDriverResponse,
     getSmartHostResponse,
@@ -29,6 +30,9 @@ interface ChatContextType {
         parkingName: string;
         reservaId: string;
         isRealChat?: boolean; // true si es garaje reclamado/creado
+        driverId?: string;
+        driverName?: string;
+        driverPhoto?: string;
     }) => IConversation;
 
     createConversationFromRequest: (params: {
@@ -200,6 +204,47 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [conversations, messages]);
 
+    // Notificaciones Globales de Chat
+    const { showNotification } = useNotification();
+    const prevMessagesRef = useRef<IMessage[]>([]);
+
+    useEffect(() => {
+        // Inicializar ref en la primera carga sin notificar
+        if (prevMessagesRef.current.length === 0 && messages.length > 0) {
+            prevMessagesRef.current = messages;
+            return;
+        }
+
+        const newMessages = messages.filter(m => !prevMessagesRef.current.find(pm => pm.id === m.id));
+
+        newMessages.forEach(m => {
+            // Solo notificar si NO es del usuario actual (es decir, es una respuesta recibida)
+            if (m.isFromCurrentUser === false) {
+                showNotification({
+                    title: m.senderName,
+                    message: m.content,
+                    type: 'message'
+                });
+            }
+        });
+
+        prevMessagesRef.current = messages;
+    }, [messages, showNotification]);
+
+    // Sincronización entre pestañas (Real-Time Mock)
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === CHAT_STORAGE_KEY) {
+                const newData = loadChatData();
+                setConversations(newData.conversations);
+                setMessages(newData.messages);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
     // Obtener conversaciones filtradas
     const getConversations = useCallback((type?: 'all' | 'host' | 'driver' | 'support') => {
         if (!type || type === 'all') {
@@ -208,7 +253,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             );
         }
         return conversations
-            .filter(c => c.type === type)
+            .filter(c => {
+                if (c.type === type) return true;
+
+                // Solo mostrar chats cruzados si es AUTO-RESERVA (mismo usuario)
+                // Esto evita que el conductor vea chats del anfitrión con OTROS usuarios
+                const isSelfChat = c.driverId === c.hostId;
+
+                if (type === 'driver' && c.type === 'host' && c.isRealChat && isSelfChat) return true;
+                if (type === 'host' && c.type === 'driver' && c.isRealChat && isSelfChat) return true;
+
+                return false;
+            })
             .sort((a, b) =>
                 new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
             );
@@ -258,7 +314,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             hostId: params.hostId,
             hostName: params.hostName,
             hostPhoto: params.hostPhoto,
-            driverId: params.driverId || 'current-user',
+            driverId: params.driverId || 'current-user', // Fallback si falta
             driverName: params.driverName || 'Conductor',
             driverPhoto: params.driverPhoto,
             // Otros campos
@@ -273,6 +329,33 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         setConversations(prev => [newConversation, ...prev]);
+
+        // RECUPERADO: Enviar mensaje de bienvenida automático del anfitrión
+        // Esto simula que el anfitrión saluda apenas reservas
+        setTimeout(() => {
+            const welcomeMsg: IMessage = {
+                id: `msg-welcome-${Date.now()}`,
+                conversationId: newConversation.id,
+                senderId: params.hostId,
+                senderName: params.hostName,
+                senderPhoto: params.hostPhoto,
+                senderType: 'host',
+                content: `¡Hola ${params.driverName}! Gracias por tu reserva en ${params.parkingName}. Aquí estoy para lo que necesites.`,
+                timestamp: new Date().toISOString(),
+                isRead: false,
+                isFromCurrentUser: false,
+            };
+
+            setMessages(prev => [...prev, welcomeMsg]);
+
+            // Actualizar preview de la conversación
+            setConversations(prev => prev.map(c =>
+                c.id === newConversation.id
+                    ? { ...c, lastMessage: welcomeMsg.content, lastMessageTime: welcomeMsg.timestamp, unreadCount: 1, unreadCountDriver: 1 }
+                    : c
+            ));
+        }, 500);
+
         return newConversation;
     }, [conversations]);
 
@@ -423,8 +506,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Buscar la conversación
         const conversation = conversations.find(c => c.id === conversationId);
 
-        // Si skipAutoReply es true, no enviar auto-reply (permitimos auto-reply en chats reales para la demo)
+        // BOt: Si skipAutoReply es true, no enviar auto-reply
         if (skipAutoReply) return;
+
+        // RECUPERADO: Si es chat real (dueño garaje = usuario), NO responder automáticamente
+        if (conversation?.isRealChat) return;
 
         // Respuesta automática mock después de 2-3 segundos
         if (conversation) {
@@ -515,20 +601,34 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const getTotalUnreadCount = useCallback((role?: 'driver' | 'host') => {
         return conversations.reduce((sum, c) => {
             if (role === 'host') {
-                // Si estoy en modo HOST, solo cuento:
-                // 1. Chats de tipo 'host' (donde soy el anfitrión)
-                // 2. Chats de soporte de anfitrión
-                // IGNORO chats 'driver' (donde soy el conductor hablándole a otro anfitrión)
-                if (c.type === 'driver' || c.id.includes('support-driver')) return sum;
-                return sum + (c.unreadCountHost || 0);
+                // Si estoy en modo HOST, cuento:
+                // 1. Chats propios de host
+                // 2. Chats REALES de auto-reserva (donde hostId == driverId)
+                const isHostChat = c.type === 'host';
+                const isSelfChat = c.driverId === c.hostId;
+                const isRealDriverChat = c.type === 'driver' && c.isRealChat && isSelfChat;
+
+                if (isHostChat || isRealDriverChat) {
+                    // Excluir chats de soporte de driver
+                    if (c.id.includes('support-driver')) return sum;
+                    return sum + (c.unreadCountHost || 0);
+                }
+                return sum;
             }
             if (role === 'driver') {
-                // Si estoy en modo DRIVER, solo cuento:
-                // 1. Chats de tipo 'driver' (donde soy el conductor)
-                // 2. Chats de soporte de conductor
-                // IGNORO chats 'host' (donde soy el anfitrión atendiéndo a un conductor)
-                if (c.type === 'host' || c.id.includes('support-host')) return sum;
-                return sum + (c.unreadCountDriver || 0);
+                // Si estoy en modo DRIVER, cuento:
+                // 1. Chats propios de driver
+                // 2. Chats REALES de auto-reserva
+                const isDriverChat = c.type === 'driver';
+                const isSelfChat = c.driverId === c.hostId;
+                const isRealHostChat = c.type === 'host' && c.isRealChat && isSelfChat;
+
+                if (isDriverChat || isRealHostChat) {
+                    // Excluir chats de soporte de host
+                    if (c.id.includes('support-host')) return sum;
+                    return sum + (c.unreadCountDriver || 0);
+                }
+                return sum;
             }
             return sum + c.unreadCount;
         }, 0);
@@ -537,14 +637,23 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Obtener no leídos por tipo
     const getUnreadCountByType = useCallback((type: 'host' | 'driver' | 'support', role?: 'driver' | 'host') => {
         return conversations
-            .filter(c => c.type === type)
+            .filter(c => {
+                if (c.type === type) return true;
+                // Lógica espejo para chats reales (SOLO AUTO-RESERVA)
+                const isSelfChat = c.driverId === c.hostId;
+                if (type === 'driver' && c.type === 'host' && c.isRealChat && isSelfChat) return true;
+                if (type === 'host' && c.type === 'driver' && c.isRealChat && isSelfChat) return true;
+                return false;
+            })
             .reduce((sum, c) => {
                 if (role === 'host') {
-                    if (c.type === 'driver' || c.id.includes('support-driver')) return sum;
+                    // Si el chat es de soporte DRIVER, ignorarlo en vistas host
+                    if (c.id.includes('support-driver')) return sum;
                     return sum + (c.unreadCountHost || 0);
                 }
                 if (role === 'driver') {
-                    if (c.type === 'host' || c.id.includes('support-host')) return sum;
+                    // Si el chat es de soporte HOST, ignorarlo en vistas driver
+                    if (c.id.includes('support-host')) return sum;
                     return sum + (c.unreadCountDriver || 0);
                 }
                 return sum + c.unreadCount;

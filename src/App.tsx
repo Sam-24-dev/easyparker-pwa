@@ -8,6 +8,8 @@ import { ProfileProvider } from './context/ProfileContext';
 import { RatingProvider } from './context/RatingContext';
 import { ReportProvider } from './context/ReportContext';
 import { ChatProvider } from './context/ChatContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { NotificationToast } from './components/ui/NotificationToast';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
@@ -181,13 +183,16 @@ function App() {
             <ReportProvider>
               <ParkingProvider>
                 <FavoritesProvider>
-                  <ReservaProvider>
-                    <HostProvider>
-                      <ChatProvider>
-                        <AppRoutes />
-                      </ChatProvider>
-                    </HostProvider>
-                  </ReservaProvider>
+                  <NotificationProvider>
+                    <NotificationToast />
+                    <ReservaProvider>
+                      <HostProvider>
+                        <ChatProvider>
+                          <AppRoutes />
+                        </ChatProvider>
+                      </HostProvider>
+                    </ReservaProvider>
+                  </NotificationProvider>
                 </FavoritesProvider>
               </ParkingProvider>
             </ReportProvider>

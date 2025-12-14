@@ -11,7 +11,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS).catch(() => {}))
+      .then((cache) => cache.addAll(CORE_ASSETS).catch(() => { }))
   );
 
   self.skipWaiting();
@@ -42,7 +42,7 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy).catch(() => {}));
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy).catch(() => { }));
         }
         return response;
       })
@@ -79,12 +79,12 @@ self.addEventListener('notificationclick', (event) => {
         for (const client of clientList) {
           const isWindowClient = 'navigate' in client;
           if (isWindowClient) {
-            const windowClient = client as WindowClient;
+            const windowClient = client;
             windowClient.postMessage({ type: 'notification-action', action: event.action, url: absoluteUrl });
             return windowClient.navigate(absoluteUrl).then(() => windowClient.focus());
           }
           if ('focus' in client) {
-            const focusedClient = client as WindowClient;
+            const focusedClient = client;
             focusedClient.postMessage({ type: 'notification-action', action: event.action, url: absoluteUrl });
             return focusedClient.focus();
           }

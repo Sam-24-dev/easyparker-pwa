@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, ReactNode, useEffect,
 import { IReserva } from '../types/index';
 import { useParkingContext } from './ParkingContext';
 import { useReservationReminders } from '../hooks/useReservationReminders';
+import { useNotification } from './NotificationContext';
 import { getAdditionalSlotKeys, getSlotKeysFromTimes } from '../utils/timeSlots';
 
 // Clave para persistir reservas del usuario en localStorage
@@ -151,6 +152,35 @@ export function ReservaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveReservasToStorage(reservas);
   }, [reservas]);
+
+  // Detectar aprobación de reservas y notificar
+  const prevReservasRef = useRef<IReserva[]>([]);
+  const { showNotification } = useNotification();
+
+  useEffect(() => {
+    const prevReservas = prevReservasRef.current;
+
+    reservas.forEach(reserva => {
+      const prev = prevReservas.find(p => p.id === reserva.id);
+
+      // Caso 1: Cambio de estado Pending -> Activa
+      if (prev && prev.estado === 'pending' && reserva.estado === 'activa') {
+        showNotification({
+          title: '¡Reserva Aprobada!',
+          message: `Tu reserva para ${reserva.vehiculo} ha sido aceptada.`,
+          type: 'success'
+        });
+      }
+
+      // Caso 2: Nueva reserva activa (directamente aprobada)
+      if (!prev && reserva.estado === 'activa' && !seededAvailabilityRef.current) {
+        // Opcional: Notificar si se agregó una reserva ya activa (ej: carga inicial o sync)
+        // showNotification(...) -> Mejor no, para evitar spam al cargar app
+      }
+    });
+
+    prevReservasRef.current = reservas;
+  }, [reservas, showNotification]);
 
   // Sincronizar disponibilidad de slots con las reservas activas actuales
   useEffect(() => {

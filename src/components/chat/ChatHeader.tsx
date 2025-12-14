@@ -11,6 +11,13 @@ export function ChatHeader({ conversation, userType }: ChatHeaderProps) {
     const navigate = useNavigate();
     const isSupport = conversation.type === 'support';
 
+    // Resolver la info de la OTRA persona dinámicamente
+    // Si soy Driver, quiero ver al Host. Si soy Host, quiero ver al Driver.
+    // Usamos los campos explícitos si existen, sino fallback a participantId legacy
+    const partnerId = userType === 'driver' ? (conversation.hostId || conversation.participantId) : (conversation.driverId || conversation.participantId);
+    const partnerName = userType === 'driver' ? (conversation.hostName || conversation.participantName) : (conversation.driverName || conversation.participantName);
+    const partnerPhoto = userType === 'driver' ? (conversation.hostPhoto || conversation.participantPhoto) : (conversation.driverPhoto || conversation.participantPhoto);
+
     const handleBack = () => {
         if (userType === 'driver') {
             navigate('/mensajes');
@@ -20,8 +27,8 @@ export function ChatHeader({ conversation, userType }: ChatHeaderProps) {
     };
 
     const handleProfileClick = () => {
-        if (!isSupport && conversation.participantId) {
-            navigate(`/perfil/${conversation.participantId}`);
+        if (!isSupport && partnerId && partnerId !== 'current-user') {
+            navigate(`/perfil/${partnerId}`);
         }
     };
 
@@ -51,8 +58,8 @@ export function ChatHeader({ conversation, userType }: ChatHeaderProps) {
                             </div>
                         ) : (
                             <img
-                                src={conversation.participantPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(conversation.participantName)}`}
-                                alt={conversation.participantName}
+                                src={partnerPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerName)}`}
+                                alt={partnerName}
                                 className="w-10 h-10 rounded-full object-cover hover:ring-2 hover:ring-blue-400 transition"
                             />
                         )}
@@ -64,7 +71,7 @@ export function ChatHeader({ conversation, userType }: ChatHeaderProps) {
                         onClick={handleProfileClick}
                     >
                         <h2 className="font-semibold text-slate-800 truncate">
-                            {isSupport ? 'Atención EasyParker' : conversation.participantName}
+                            {isSupport ? 'Atención EasyParker' : partnerName}
                         </h2>
                         {conversation.parkingName && !isSupport && (
                             <p className="text-xs text-slate-500 truncate">

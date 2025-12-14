@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useReservaContext } from '../context/ReservaContext';
-// import { useChatContext } from '../context/ChatContext';
+import { useChatContext } from '../context/ChatContext';
 import { IReserva, TipoVehiculo } from '../types';
 import { useHost, HostRequest } from '../context/HostContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { toPng } from 'html-to-image';
 import { Calendar, CreditCard, Download, Share2, Wallet, MessageCircle } from 'lucide-react';
 import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
-// import { getRandomHostWelcomeMessage } from '../data/chatMock';
+import { getRandomHostWelcomeMessage } from '../data/chatMock';
 import { events } from '../data/events';
 import { getParkingPriceForEvent } from '../utils/pricingUtils';
 import { ShieldCheck, Loader2 } from 'lucide-react';
@@ -104,7 +104,7 @@ export function Reservar() {
   const navigate = useNavigate();
   const { getParkingById, filtros, getBlockedSlots } = useParkingContext();
   const { agregarReserva } = useReservaContext();
-  // const { createConversationFromReserva, sendInitialMessage } = useChatContext();
+  const { createConversationFromReserva, sendInitialMessage } = useChatContext();
   const { addRequest, requests: hostRequests, isOnline } = useHost();
   const { user } = useAuth();
   const { userParkings } = useParkingContext();
@@ -183,6 +183,7 @@ export function Reservar() {
   const [cvvError, setCvvError] = useState('');
   const [confirmedHoraInicio, setConfirmedHoraInicio] = useState('');
   const [confirmedHoraFin, setConfirmedHoraFin] = useState('');
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
 
   const [reservationStatus, setReservationStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
@@ -426,6 +427,39 @@ export function Reservar() {
         setStep(4);
         agregarReserva({ ...nuevaReserva, estado: 'activa' });
       }, 5000);
+
+      // Determinar si es chat real: true si el garaje fue reclamado (claimedFromId) o creado por el anfitrión (ID >= 1000)
+      // Los 35 parqueos estáticos (ID 1-35) NO tienen claimedFromId y su chat es mock
+      const isRealChat = !!parking.claimedFromId || parking.id >= 1000;
+
+      // Crear conversación con el anfitrión
+      const conversation = createConversationFromReserva({
+        hostId: parking.ownerId || `host-${parking.id}`,
+        hostName: parking.ownerName || 'Anfitrión',
+        hostPhoto: parking.ownerPhoto,
+        parkingId: parking.id,
+        parkingName: parking.nombre,
+        reservaId: code,
+        driverId: user?.id || 'guest',
+        driverName: user?.nombre || 'Conductor',
+        isRealChat, // Solo es real si el garaje fue reclamado/creado
+      });
+
+      // Guardar el ID de la conversación para navegar después
+      setConversationId(conversation.id);
+
+      // Solo enviar mensaje automático del anfitrión si es chat MOCK (parqueo estático)
+      // Si es chat REAL (garaje reclamado/creado), el anfitrión enviará el mensaje manualmente
+      if (!isRealChat) {
+        setTimeout(() => {
+          sendInitialMessage(
+            conversation.id,
+            getRandomHostWelcomeMessage(),
+            { id: parking.ownerId || `host-${parking.id}`, name: parking.ownerName || 'Anfitrión', photo: parking.ownerPhoto },
+            'host'
+          );
+        }, 1000);
+      }
     }
   };
 

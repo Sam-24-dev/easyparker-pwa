@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { IParking } from '../types';
+import { useNotification } from './NotificationContext';
 
 // Interfaces para datos del Host
 export interface HostStats {
@@ -279,6 +280,7 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
   const [historyRequests, setHistoryRequests] = useState<HostRequest[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const { showNotification } = useNotification();
 
   // Ref para vibración
   const lastRequestCountRef = useRef(0);
@@ -467,10 +469,16 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const pendingCount = requests.filter(r => r.status === 'pending').length;
     if (pendingCount > lastRequestCountRef.current && lastRequestCountRef.current > 0) {
-      // Nueva solicitud llegó - vibrar
+      // Nueva solicitud llegó - vibrar y notificar
       if ('vibrate' in navigator) {
         navigator.vibrate([200, 100, 200]); // Patrón de vibración
       }
+      showNotification({
+        title: '¡Nueva Solicitud!',
+        message: 'Un conductor quiere reservar tu garaje',
+        type: 'success', // Green for money/success
+        duration: 6000
+      });
     }
     lastRequestCountRef.current = pendingCount;
   }, [requests]);

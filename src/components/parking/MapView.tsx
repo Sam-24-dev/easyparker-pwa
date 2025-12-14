@@ -22,7 +22,7 @@ interface MapViewProps {
   onLiveUpdate?: (changedIds: number[]) => void;
   flyToCoords?: { lat: number; lng: number } | null;
   selectedId?: number | null;
-  selectedId?: number | null;
+
   height?: number;
   activeEvent?: IEvent | null;
 }
@@ -59,7 +59,7 @@ const createMarkerIcon = (
   });
 };
 
-const createEventIcon = (type: string) => {
+const createEventIcon = () => {
   const html = `
      <div class="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-full border-2 border-white shadow-lg animate-bounce">
         <span class="text-lg">🎪</span>
@@ -320,10 +320,10 @@ export function MapView({
                   <span className="font-semibold">${parking.precio}/hora</span>
                   <span
                     className={`px-3 py-1 rounded-full text-white text-[11px] font-semibold ${parking.plazasLibres > 10
-                        ? 'bg-emerald-500'
-                        : parking.plazasLibres >= 3
-                          ? 'bg-amber-500'
-                          : 'bg-rose-500'
+                      ? 'bg-emerald-500'
+                      : parking.plazasLibres >= 3
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500'
                       }`}
                   >
                     {parking.plazasLibres} plazas
@@ -365,7 +365,7 @@ export function MapView({
             />
             <Marker
               position={[activeEvent.lat, activeEvent.lng]}
-              icon={createEventIcon(activeEvent.type)}
+              icon={createEventIcon()}
             >
               <Popup className="event-popup">
                 <div className="text-center">

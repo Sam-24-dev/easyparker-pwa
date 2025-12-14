@@ -70,7 +70,7 @@ export function ConversationCard({ conversation, onClick, userType = 'driver' }:
                     </span>
                 </div>
 
-                <p className={`text-sm truncate ${conversation.unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
+                <p className={`text-sm truncate ${unreadCount > 0 ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
                     {conversation.lastMessage}
                 </p>
 

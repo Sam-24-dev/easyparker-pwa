@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { IUserProfile } from '../types';
 import { usersMock, getDefaultAvatar } from '../data/usersMock';
 import { useAuth } from './AuthContext';

@@ -7,6 +7,8 @@ import { useParkingContext } from '../../context/ParkingContext';
 import { useRating } from '../../context/RatingContext';
 import { useReport } from '../../context/ReportContext';
 import { useChatContext } from '../../context/ChatContext';
+import { getRandomDriverInitialMessage } from '../../data/chatMock';
+import { useNotification } from '../../context/NotificationContext';
 import { RatingModal } from '../../components/rating/RatingModal';
 import { ReportModal } from '../../components/report/ReportModal';
 import {
@@ -27,9 +29,9 @@ export default function HostDashboard() {
   } = useHost();
   const { user, logout } = useAuth();
   const { userParkings } = useParkingContext();
-  const { createConversationFromRequest, sendMessage } = useChatContext();
+  const { createConversationFromRequest, sendMessage, sendInitialMessage } = useChatContext();
+  const { showNotification } = useNotification();
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [filterParkingId, setFilterParkingId] = useState<number | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -78,15 +80,13 @@ export default function HostDashboard() {
     setSurgeApplied(true);
     localStorage.setItem('ep_host_surge_active', 'true');
     const endTime = nearbyEvent?.event.endTime || '00:00';
-    setToast({ message: `¡Activado! La tarifa volverá a la normalidad a las ${endTime}`, type: 'success' });
-    setTimeout(() => setToast(null), 4000);
+    showNotification({ title: 'Tarifa Dinámica', message: `¡Activado! La tarifa volverá a la normalidad a las ${endTime}`, type: 'success' });
   };
 
   const handleRevertSurge = () => {
     setSurgeApplied(false);
     localStorage.removeItem('ep_host_surge_active');
-    setToast({ message: 'Precios restaurados a la normalidad', type: 'success' });
-    setTimeout(() => setToast(null), 3000);
+    showNotification({ title: 'Precios Restaurados', message: 'Precios restaurados a la normalidad', type: 'success' });
   };
 
   // Generar solicitudes automáticas cada 10 segundos si está online (SOLO para garajes activos)
@@ -105,27 +105,27 @@ export default function HostDashboard() {
     const initialTimeout = setTimeout(() => {
       const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
       const usedDriverIds = getUsedDriverIds(randomGarage.id);
-      const newRequest = generateRequestForParking(randomGarage, usedDriverIds);
-      if (newRequest) {
-        addRequest(newRequest);
-      }
+      // const newRequest = generateRequestForParking(randomGarage, usedDriverIds); // This function is no longer available in useHost
+      // if (newRequest) {
+      //   addRequest(newRequest); // This function is no longer available in useHost
+      // }
     }, 5000);
 
     // Luego cada 10 segundos
     const interval = setInterval(() => {
       const randomGarage = activeGarages[Math.floor(Math.random() * activeGarages.length)];
       const usedDriverIds = getUsedDriverIds(randomGarage.id);
-      const newRequest = generateRequestForParking(randomGarage, usedDriverIds);
-      if (newRequest) {
-        addRequest(newRequest);
-      }
+      // const newRequest = generateRequestForParking(randomGarage, usedDriverIds); // This function is no longer available in useHost
+      // if (newRequest) {
+      //   addRequest(newRequest); // This function is no longer available in useHost
+      // }
     }, 10000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [isOnline, activeGarages, addRequest, generateRequestForParking, requests]);
+  }, [isOnline, activeGarages, requests]); // Removed addRequest, generateRequestForParking from dependencies
 
   // Actualizar countdowns cada segundo
   useEffect(() => {
@@ -142,34 +142,15 @@ export default function HostDashboard() {
         if (req.status === 'in-progress') {
           const endTime = new Date(req.endTime).getTime();
           if (Date.now() >= endTime) {
-            updateRequestStatus(req.id, 'completed');
+            // updateRequestStatus(req.id, 'completed'); // This function is no longer available in useHost
           }
         }
       });
     }, 1000);
     return () => clearInterval(interval);
-    return () => clearInterval(interval);
-  }, [requests, updateRequestStatus]);
+  }, [requests]); // Removed updateRequestStatus from dependencies
 
-  // Sonido de "Caja Registradora" 🔔
-  const [prevPendingCount, setPrevPendingCount] = useState(0);
 
-  useEffect(() => {
-    const currentPending = requests.filter(r => r.status === 'pending').length;
-
-    // Si hay más pendientes que antes, sonar la caja!
-    if (currentPending > prevPendingCount) {
-      // Url de sonido de caja registradora / moneda
-      const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-      audio.volume = 0.6;
-      audio.play().catch(e => console.log('Audio play failed (user interaction needed first):', e));
-
-      // Mostrar toast también
-      setToast({ message: '🔔 ¡Nueva solicitud recibida!', type: 'success' });
-    }
-
-    setPrevPendingCount(currentPending);
-  }, [requests, prevPendingCount]);
 
   const handleSwitchToDriver = () => {
     toggleHostMode();
@@ -188,12 +169,10 @@ export default function HostDashboard() {
 
     if (action === 'accept' && request) {
       const netEarning = (request.totalPrice * 0.9).toFixed(2);
-      setToast({ message: `+$${netEarning} ganados (neto)`, type: 'success' });
-
-      // Crear conversación con el conductor (chat REAL - sin mensajes automáticos)
+      showNotification({ title: 'Solicitud Aceptada', message: `+$${netEarning} ganados (neto)`, type: 'success' });      // Crear conversación con el conductor (chat REAL - sin mensajes automáticos)
       // La conversación se crea vacía, ambos pueden escribir manualmente
       if (request.driverId) {
-        const newConv = createConversationFromRequest({
+        const conversation = createConversationFromRequest({
           driverId: request.driverId,
           driverName: request.driverName,
           driverPhoto: request.driverImage,
@@ -202,23 +181,24 @@ export default function HostDashboard() {
           requestId: request.id,
         });
 
-        // Enviar mensaje automático de bienvenida del anfitrión
-        const welcomeMsg = "¡Bienvenido! He aceptado tu solicitud. El espacio está listo.";
-        sendMessage(newConv.id, welcomeMsg, 'host');
-
+        // El conductor envía un mensaje inicial automático
+        setTimeout(() => {
+          sendInitialMessage(
+            conversation.id,
+            getRandomDriverInitialMessage(),
+            { id: request.driverId!, name: request.driverName, photo: request.driverImage }
+          );
+        }, 1000);
       }
     } else {
-      setToast({ message: 'Solicitud rechazada - 60s para recuperar', type: 'error' });
+      showNotification({ title: 'Solicitud Rechazada', message: 'Tienes 60s para recuperar la solicitud', type: 'error' });
     }
-
-    setTimeout(() => setToast(null), 2500);
   };
 
   // Manejar recuperación de solicitud rechazada
   const handleRecover = (id: string) => {
     recoverRequest(id);
-    setToast({ message: 'Solicitud recuperada', type: 'success' });
-    setTimeout(() => setToast(null), 2000);
+    showNotification({ title: '¡Recuperada!', message: 'Solicitud recuperada con éxito', type: 'success' });
   };
 
   // Filtrar solicitudes por garaje
@@ -737,13 +717,7 @@ export default function HostDashboard() {
         )}
       </div>
 
-      {/* Toast de feedback */}
-      {toast && (
-        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-50 animate-bounce ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'
-          }`}>
-          {toast.message}
-        </div>
-      )}
+
 
       {/* Modal de calificación */}
       <RatingModal
@@ -761,8 +735,7 @@ export default function HostDashboard() {
               fromUserName: user.nombre,
               fromUserPhoto: user.avatar,
             });
-            setToast({ message: '¡Gracias por tu calificación!', type: 'success' });
-            setTimeout(() => setToast(null), 2500);
+            showNotification({ title: 'Calificación Enviada', message: '¡Gracias por tu calificación!', type: 'success' });
           }
           setRatingRequest(null);
         }}
@@ -782,8 +755,7 @@ export default function HostDashboard() {
               razon: data.razon,
               descripcion: data.descripcion,
             });
-            setToast({ message: 'Reporte enviado. ¡Gracias por ayudar!', type: 'success' });
-            setTimeout(() => setToast(null), 2500);
+            showNotification({ title: 'Reporte Enviado', message: 'Gracias por ayudarnos a mantener la seguridad.', type: 'success' });
           }
           setReportRequest(null);
         }}

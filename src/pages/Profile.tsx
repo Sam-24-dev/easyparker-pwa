@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { RazonReporte } from '../types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { VerifiedBadge } from '../components/profile/VerifiedBadge';
@@ -66,7 +67,7 @@ export function Profile() {
         );
     }
 
-    const handleReport = (data: { razon: any; descripcion?: string }) => {
+    const handleReport = (data: { razon: RazonReporte; descripcion?: string }) => {
         if (!user || !profile) return;
         addReport({
             reportadoPorId: user.id,

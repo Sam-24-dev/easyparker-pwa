@@ -134,7 +134,8 @@ export interface IMessage {
   content: string;
   timestamp: string;
   isRead: boolean;
-  isFromCurrentUser?: boolean; // Ahora opcional/calculado
+  isFromCurrentUser: boolean;
+  // isFromCurrentUser?: boolean; // Ahora opcional/calculado
 }
 
 export interface IConversation {

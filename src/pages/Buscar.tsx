@@ -504,7 +504,7 @@ export function Buscar() {
                       parking={parking}
                       onClick={() => navigate(`/parqueo/${parking.id}`)}
                       onLocateClick={() => handleLocateParking(parking.id, parking.lat, parking.lng)}
-                      // @ts-ignore
+
                       priceInfo={parking.pricingResult}
                       showSocialProof={!!(activeEvent && parking.pricingResult?.isSurge)}
                       onReserveClick={() => navigate(`/reservar/${parking.id}`)}

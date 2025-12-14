@@ -85,7 +85,6 @@ export const hostQuickReplies = [
     "Gracias por usar mi garaje 😊",
 ];
 
-
 // Sugerencias para chat de soporte (CONDUCTOR)
 export const driverSupportQuickReplies = [
     "¿Cómo cancelo una reserva?",
@@ -109,12 +108,15 @@ export function getSmartHostResponse(input: string): string {
     if (lowerInput.includes("camino") || lowerInput.includes("llegando") || lowerInput.includes("voy")) {
         return "¡Perfecto! Te estaré esperando. Avísame cuando estés afuera.";
     }
+
     if (lowerInput.includes("portón") || lowerInput.includes("código") || lowerInput.includes("abres")) {
         return "El portón es automático. El código es 1234. ¡Pasa con confianza!";
     }
+
     if (lowerInput.includes("gracias") || lowerInput.includes("excelente")) {
         return "¡De nada! Gracias a ti por confiar en mi garaje. ¡Vuelve pronto! 😊";
     }
+
     if (lowerInput.includes("disponible") || lowerInput.includes("espacio")) {
         return "Sí, el espacio está 100% disponible y reservado para ti.";
     }
@@ -163,9 +165,11 @@ export function getSmartDriverResponse(input: string): string {
     if (lowerInput.includes("código") || lowerInput.includes("abierto")) {
         return "¡Listo! Ya estacioné, gracias.";
     }
+
     if (lowerInput.includes("hora") || lowerInput.includes("llegas")) {
         return "Ya voy en camino, llego en 10 minutos.";
     }
+
     if (lowerInput.includes("bienvenido") || lowerInput.includes("listo")) {
         return "Gracias, ya estoy llegando al garaje.";
     }
@@ -174,4 +178,3 @@ export function getSmartDriverResponse(input: string): string {
 }
 
 export const supportQuickReplies = driverSupportQuickReplies; // Fallback legacy
-

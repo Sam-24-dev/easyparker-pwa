@@ -29,6 +29,7 @@ export function ChatView() {
     useEffect(() => {
         if (!conversationId) {
             navigate('/mensajes');
+            return;
         }
     }, [conversationId, navigate]);
 
@@ -75,6 +76,13 @@ export function ChatView() {
             <div className="max-w-md mx-auto min-h-[100dvh] bg-slate-50 flex flex-col shadow-2xl">
                 {/* Header */}
                 <ChatHeader conversation={conversation} userType="driver" />
+
+                {/* Input con quick replies */}
+                <ChatInput
+                    onSend={handleSendMessage}
+                    userType="driver"
+                    conversationType={conversation.type}
+                />
 
                 {/* Messages container */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
