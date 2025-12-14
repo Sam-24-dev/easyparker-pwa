@@ -50,7 +50,7 @@ export interface IReserva {
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  estado: 'activa' | 'completada';
+  estado: 'activa' | 'completada' | 'pending' | 'rejected';
   vehiculo: TipoVehiculo;
   placa: string;
 }

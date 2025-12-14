@@ -266,10 +266,17 @@ const vehicles = [
 
 export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isHostMode, setIsHostMode] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => {
+    const saved = localStorage.getItem('ep_host_online');
+    return saved === 'true';
+  });
   const [stats, setStats] = useState<HostStats>(mockHostStats);
   const [garage, setGarage] = useState<Partial<IParking>>(mockHostGarage);
-  const [requests, setRequests] = useState<HostRequest[]>(mockHostRequests);
+  // Inicializar solicitudes desde localStorage o usar mock por defecto
+  const [requests, setRequests] = useState<HostRequest[]>(() => {
+    const saved = localStorage.getItem('ep_host_requests');
+    return saved ? JSON.parse(saved) : mockHostRequests;
+  });
   const [historyRequests, setHistoryRequests] = useState<HostRequest[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
 
@@ -477,6 +484,38 @@ export const HostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }));
     }, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Sincronizar estado online
+  useEffect(() => {
+    localStorage.setItem('ep_host_online', String(isOnline));
+  }, [isOnline]);
+
+  useEffect(() => {
+    const handleOnlineChange = (e: StorageEvent) => {
+      if (e.key === 'ep_host_online' && e.newValue) {
+        setIsOnline(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', handleOnlineChange);
+    return () => window.removeEventListener('storage', handleOnlineChange);
+  }, []);
+
+  // Sincronizar con LocalStorage para comunicación entre pestañas (Tab Conductor -> Tab Anfitrión)
+  // 1. Guardar cambios
+  useEffect(() => {
+    localStorage.setItem('ep_host_requests', JSON.stringify(requests));
+  }, [requests]);
+
+  // 2. Escuchar cambios de otras pestañas
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ep_host_requests' && e.newValue) {
+        setRequests(JSON.parse(e.newValue));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   return (

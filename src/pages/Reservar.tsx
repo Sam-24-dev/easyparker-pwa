@@ -3,17 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useParkingContext } from '../context/ParkingContext';
 import { useReservaContext } from '../context/ReservaContext';
-import { useChatContext } from '../context/ChatContext';
+// import { useChatContext } from '../context/ChatContext';
 import { IReserva, TipoVehiculo } from '../types';
+import { useHost, HostRequest } from '../context/HostContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toPng } from 'html-to-image';
 import { Calendar, CreditCard, Download, Share2, Wallet, MessageCircle } from 'lucide-react';
 import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
-import { getRandomHostWelcomeMessage } from '../data/chatMock';
+// import { getRandomHostWelcomeMessage } from '../data/chatMock';
 import { events } from '../data/events';
 import { getParkingPriceForEvent } from '../utils/pricingUtils';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Loader2 } from 'lucide-react';
 
 
 const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
@@ -102,7 +104,10 @@ export function Reservar() {
   const navigate = useNavigate();
   const { getParkingById, filtros, getBlockedSlots } = useParkingContext();
   const { agregarReserva } = useReservaContext();
-  const { createConversationFromReserva, sendInitialMessage } = useChatContext();
+  // const { createConversationFromReserva, sendInitialMessage } = useChatContext();
+  const { addRequest, requests: hostRequests, isOnline } = useHost();
+  const { user } = useAuth();
+  const { userParkings } = useParkingContext();
   const parking = getParkingById(Number(id));
   const parkingId = parking?.id ?? null;
   const blockedSlots = useMemo(() => {
@@ -178,7 +183,9 @@ export function Reservar() {
   const [cvvError, setCvvError] = useState('');
   const [confirmedHoraInicio, setConfirmedHoraInicio] = useState('');
   const [confirmedHoraFin, setConfirmedHoraFin] = useState('');
-  const [conversationId, setConversationId] = useState('');
+
+
+  const [reservationStatus, setReservationStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
   const voucherRef = useRef<HTMLDivElement | null>(null);
 
   // VIP Escort State (Solo para Burger Show / Centro)
@@ -251,6 +258,36 @@ export function Reservar() {
       : horarioResumen;
     return JSON.stringify({ reserva: reservaCode, placa: placa.toUpperCase(), parking: parking.nombre, horario: horarioQR });
   }, [reservaCode, placa, parking, horarioResumen, confirmedHoraInicio, confirmedHoraFin]);
+
+
+  // Polling for Real Request Status
+  useEffect(() => {
+    if (reservationStatus === 'pending' && reservaCode) {
+      const found = hostRequests.find(r => r.id === reservaCode);
+      if (found) {
+        if (found.status === 'accepted' || found.status === 'in-progress') {
+          setReservationStatus('approved');
+          setStep(4);
+          // Add to local driver reservations
+          // const parkingPrice = slotsWithAvailability.length * (getParkingPriceForEvent(parking, events).finalPrice) + (wantsEscort ? 1 : 0);
+          agregarReserva({
+            id: reservaCode,
+            parqueoId: parking!.id,
+            fecha: new Date().toISOString().split('T')[0],
+            horaInicio: confirmedHoraInicio,
+            horaFin: confirmedHoraFin,
+            estado: 'activa',
+            vehiculo: vehiculoSeleccionado,
+            placa: placa,
+          });
+        }
+        else if (found.status === 'rejected') {
+          setReservationStatus('rejected');
+          // Handle rejection (maybe show modal or go back)
+        }
+      }
+    }
+  }, [reservationStatus, hostRequests, reservaCode, confirmedHoraInicio, confirmedHoraFin]);
 
   if (!parking) {
     return (
@@ -346,54 +383,55 @@ export function Reservar() {
       fecha: new Date().toISOString().split('T')[0],
       horaInicio,
       horaFin,
-      estado: 'activa',
+      estado: 'pending', // Inicialmente pendiente
       vehiculo: vehiculoSeleccionado,
       placa: placa.toUpperCase(),
     };
 
-    agregarReserva(nuevaReserva);
+    // Check if this is a "Self-Owned" or "Real Host" garage (part of userParkings context)
+    // NOTE: In a real app, we'd check if ownerId exists in a DB. Here we check if it's in our local "Host Context" scope.
+    const isMyGarage = userParkings.some(p => p.id === parking.id);
 
-    // Determinar si es chat real: true si el garaje fue reclamado (claimedFromId) o creado por el anfitrión (ID >= 1000)
-    // Los 35 parqueos estáticos (ID 1-35) NO tienen claimedFromId y su chat es mock
-    const isRealChat = !!parking.claimedFromId || parking.id >= 1000;
+    setReservationStatus('pending');
 
-    // Crear conversación con el anfitrión
-    const conversation = createConversationFromReserva({
-      hostId: parking.ownerId || `host-${parking.id}`,
-      hostName: parking.ownerName || 'Anfitrión',
-      hostPhoto: parking.ownerPhoto,
-      parkingId: parking.id,
-      parkingName: parking.nombre,
-      reservaId: code,
-      isRealChat, // Solo es real si el garaje fue reclamado/creado
-    });
-
-    // Guardar el ID de la conversación para navegar después
-    setConversationId(conversation.id);
-
-    // Solo enviar mensaje automático del anfitrión si es chat MOCK (parqueo estático)
-    // Si es chat REAL (garaje reclamado/creado), el anfitrión enviará el mensaje manualmente
-    if (!isRealChat) {
+    if (isMyGarage) {
+      if (!isOnline) {
+        alert('El anfitrión no está recibiendo solicitudes en este momento.');
+        setReservationStatus('idle');
+        return;
+      }
+      // REAL FLOW: Add to Host Dashboard
+      const hostRequest: HostRequest = {
+        id: code,
+        driverId: user?.id || 'guest',
+        driverName: user?.nombre || 'Usuario Conductor',
+        driverImage: user?.avatar,
+        driverVerified: true,
+        vehicleModel: vehiculoSeleccionado,
+        vehiclePlate: placa.toUpperCase(),
+        parkingId: parking!.id,
+        parkingName: parking!.nombre,
+        parkingPhoto: parking!.foto,
+        startTime: new Date().toISOString().split('T')[0] + 'T' + horaInicio,
+        endTime: new Date().toISOString().split('T')[0] + 'T' + horaFin,
+        totalPrice: totalPrice,
+        status: 'pending',
+        timestamp: 'Ahora'
+      };
+      addRequest(hostRequest);
+    } else {
+      // SIMULATION FLOW: Auto-approve in 5s
       setTimeout(() => {
-        sendInitialMessage(
-          conversation.id,
-          getRandomHostWelcomeMessage(),
-          { id: parking.ownerId || `host-${parking.id}`, name: parking.ownerName || 'Anfitrión', photo: parking.ownerPhoto },
-          'host'
-        );
-      }, 1000);
+        setReservationStatus('approved');
+        setStep(4);
+        agregarReserva({ ...nuevaReserva, estado: 'activa' });
+      }, 5000);
     }
-
-    setStep(4);
   };
 
   const handleContactHost = () => {
-    // Navegar a la conversación creada
-    if (conversationId) {
-      navigate(`/mensajes/${conversationId}`);
-    } else {
-      navigate('/mensajes');
-    }
+    // Navegar a mensajes general por ahora
+    navigate('/mensajes');
   };
 
   const volver = () => {
@@ -484,8 +522,8 @@ export function Reservar() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-white/60">Parqueo</p>
-          <p className="text-3xl font-semibold">#{parking.id.toString().padStart(2, '0')}</p>
-          <p className="text-white/80 text-base mt-1 leading-tight">{parking.nombre}</p>
+          <p className="text-3xl font-semibold">#{parking!.id.toString().padStart(2, '0')}</p>
+          <p className="text-white/80 text-base mt-1 leading-tight">{parking!.nombre}</p>
         </div>
         <div className="text-right text-sm text-white/80">
           <p>{vehiculoSeleccionado}</p>
@@ -509,6 +547,36 @@ export function Reservar() {
 
   return (
     <Layout>
+      {/* Waiting Screen Overlay */}
+      {reservationStatus === 'pending' && (
+        <div className="fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+          <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6 relative">
+            <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-blue-100 animate-ping opacity-20" />
+          </div>
+          <h2 className="text-2xl font-bold text-[#0B1F60] mb-2">Solicitando espacio...</h2>
+          <p className="text-slate-500 max-w-xs mx-auto mb-8">
+            Contactando al anfitrión {parking?.ownerName || ''}. <br />
+            La mayoría responde en menos de 1 minuto.
+          </p>
+          <div className="w-64 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '30%' }} />
+          </div>
+          <p className="mt-4 text-xs text-slate-400">No cierres esta ventana</p>
+        </div>
+      )}
+
+      {reservationStatus === 'rejected' && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">😕</span>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Solicitud rechazada</h2>
+          <p className="text-slate-500 mb-6">El anfitrión no puede recibirte en este momento.</p>
+          <Button onClick={() => { setReservationStatus('idle'); setStep(1); }} variant="secondary">Intentar de nuevo</Button>
+        </div>
+      )}
+
       {step === 1 && (
         <section className="space-y-6">
           <StepHeader title="Horarios disponibles" />
@@ -585,7 +653,7 @@ export function Reservar() {
           <div>
             <p className="text-sm text-slate-500 mb-3">Selecciona el tipo de vehículo</p>
             <div className="grid grid-cols-2 gap-3">
-              {parking.vehiculosPermitidos.map((tipo) => (
+              {parking!.vehiculosPermitidos.map((tipo) => (
                 <button
                   key={tipo}
                   type="button"
