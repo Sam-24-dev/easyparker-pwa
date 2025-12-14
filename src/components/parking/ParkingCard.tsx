@@ -1,4 +1,6 @@
 import { IParking } from '../../types/index';
+import { PricingResult } from '../../utils/pricingUtils';
+
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { StarRating } from '../ui/StarRating';
@@ -10,9 +12,12 @@ interface ParkingCardProps {
   onClick?: () => void;
   onLocateClick?: () => void;
   onReserveClick?: () => void;
+  priceInfo?: PricingResult;
+  showSocialProof?: boolean;
 }
 
-export function ParkingCard({ parking, onClick, onLocateClick, onReserveClick }: ParkingCardProps) {
+export function ParkingCard({ parking, onClick, onLocateClick, onReserveClick, priceInfo, showSocialProof }: ParkingCardProps) {
+
   const handleViewDetails = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     onClick?.();
@@ -60,7 +65,7 @@ export function ParkingCard({ parking, onClick, onLocateClick, onReserveClick }:
           </div>
         )}
       </div>
-      
+
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="font-semibold text-gray-900 flex-1 line-clamp-1">{parking.nombre}</h3>
@@ -101,31 +106,55 @@ export function ParkingCard({ parking, onClick, onLocateClick, onReserveClick }:
             </div>
             <span className="font-medium">{parking.distancia}m</span>
           </button>
-          
+
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <div className="p-1.5 bg-gray-50 rounded-full text-gray-500">
               <DollarSign size={14} />
             </div>
-            <span>${parking.precio.toFixed(2)}/hora</span>
+            {priceInfo?.isSurge ? (
+              <div className="flex flex-col leading-tight">
+                <span className="text-xs text-slate-400 line-through">${priceInfo.basePrice.toFixed(2)}</span>
+                <span className="font-bold text-rose-600 flex items-center gap-1">
+                  ${priceInfo.finalPrice.toFixed(2)}
+                  <span className="text-[10px] bg-rose-100 text-rose-600 px-1 rounded uppercase">Evento</span>
+                </span>
+              </div>
+            ) : (
+              <span>${parking.precio.toFixed(2)}/hora</span>
+            )}
           </div>
         </div>
 
+        {/* Social Proof & Urgency */}
+        {(showSocialProof || (priceInfo?.isSurge && parking.plazasLibres < 5)) && (
+          <div className="mb-3 p-2 bg-amber-50 border border-amber-100 rounded-lg">
+            {showSocialProof && (
+              <p className="text-[10px] text-amber-700 font-medium flex items-center gap-1 mb-0.5">
+                <User size={10} /> 12 personas viendo este sitio
+              </p>
+            )}
+            {parking.plazasLibres < 5 && (
+              <p className="text-[10px] text-rose-600 font-bold">
+                ¡Casi lleno! Quedan {parking.plazasLibres} lugares
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="pt-3 border-t border-gray-100 space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className={`font-medium flex items-center gap-1.5 ${
-              parking.plazasLibres > 10
-                ? 'text-green-600'
-                : parking.plazasLibres > 3
+            <span className={`font-medium flex items-center gap-1.5 ${parking.plazasLibres > 10
+              ? 'text-green-600'
+              : parking.plazasLibres > 3
                 ? 'text-yellow-600'
                 : 'text-red-600'
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${
-                parking.plazasLibres > 10
-                  ? 'bg-green-500'
-                  : parking.plazasLibres > 3
+              }`}>
+              <span className={`w-2 h-2 rounded-full ${parking.plazasLibres > 10
+                ? 'bg-green-500'
+                : parking.plazasLibres > 3
                   ? 'bg-yellow-500'
                   : 'bg-red-500'
-              }`} />
+                }`} />
               {parking.plazasLibres} plazas disponibles
             </span>
           </div>

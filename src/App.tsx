@@ -38,6 +38,8 @@ function AppRoutes() {
         {/* Rutas públicas (auth flow) */}
         <Route path="/splash" element={<Splash />} />
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/events" element={<Events />} />
+
         <Route path="/signup" element={<SignUp />} />
 
         {/* Rutas protegidas (requieren autenticación) */}
@@ -167,7 +169,10 @@ function AppRoutes() {
   );
 }
 
+import { Events } from './pages/Events';
+
 function App() {
+
   return (
     <Router>
       <AuthProvider>

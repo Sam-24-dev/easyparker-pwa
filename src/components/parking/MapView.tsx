@@ -1,9 +1,11 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polygon, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polygon, useMapEvents, Circle } from 'react-leaflet';
+
 import L, { LeafletMouseEvent, Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin } from 'lucide-react';
-import { IParking } from '../../types/index';
+import { IParking, IEvent } from '../../types/index';
+
 import { useNavigate } from 'react-router-dom';
 import { VALIDATED_ZONES } from '../../data/validatedZones';
 import { MapLegend } from './MapLegend';
@@ -20,8 +22,11 @@ interface MapViewProps {
   onLiveUpdate?: (changedIds: number[]) => void;
   flyToCoords?: { lat: number; lng: number } | null;
   selectedId?: number | null;
+  selectedId?: number | null;
   height?: number;
+  activeEvent?: IEvent | null;
 }
+
 
 const markerColors: Record<'green' | 'yellow' | 'red' | 'blue' | 'orange', string> = {
   green: '#16a34a',
@@ -53,6 +58,22 @@ const createMarkerIcon = (
     popupAnchor: [0, -28],
   });
 };
+
+const createEventIcon = (type: string) => {
+  const html = `
+     <div class="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-full border-2 border-white shadow-lg animate-bounce">
+        <span class="text-lg">🎪</span>
+     </div>
+   `;
+  return L.divIcon({
+    html,
+    className: 'custom-event-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20]
+  });
+};
+
 
 function MapInteractions({
   onLongPress,
@@ -105,7 +126,9 @@ export function MapView({
   flyToCoords,
   selectedId,
   height = 400,
+  activeEvent
 }: MapViewProps) {
+
   const mapRef = React.useRef<LeafletMap | null>(null);
   const markerRefs = React.useRef<Record<number, L.Marker | null>>({});
   const [mapReady, setMapReady] = React.useState(false);
@@ -296,13 +319,12 @@ export function MapView({
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold">${parking.precio}/hora</span>
                   <span
-                    className={`px-3 py-1 rounded-full text-white text-[11px] font-semibold ${
-                      parking.plazasLibres > 10
+                    className={`px-3 py-1 rounded-full text-white text-[11px] font-semibold ${parking.plazasLibres > 10
                         ? 'bg-emerald-500'
                         : parking.plazasLibres >= 3
                           ? 'bg-amber-500'
                           : 'bg-rose-500'
-                    }`}
+                      }`}
                   >
                     {parking.plazasLibres} plazas
                   </span>
@@ -326,7 +348,37 @@ export function MapView({
         )}
 
         <MapInteractions onLongPress={onMapLongPress} />
+
+        {/* Active Event Visualization */}
+        {activeEvent && (
+          <>
+            <Circle
+              center={[activeEvent.lat, activeEvent.lng]}
+              radius={activeEvent.radiusKm * 1000}
+              pathOptions={{
+                color: '#6366f1', // Indigo
+                fillColor: '#6366f1',
+                fillOpacity: 0.1,
+                dashArray: '10, 10',
+                weight: 2
+              }}
+            />
+            <Marker
+              position={[activeEvent.lat, activeEvent.lng]}
+              icon={createEventIcon(activeEvent.type)}
+            >
+              <Popup className="event-popup">
+                <div className="text-center">
+                  <strong className="text-indigo-800 text-lg">{activeEvent.title}</strong>
+                  <p className="text-indigo-600 text-xs font-bold">EVENTO ACTIVO</p>
+                </div>
+              </Popup>
+            </Marker>
+          </>
+        )}
+
       </MapContainer>
+
 
       {/* Leyenda del mapa */}
       <MapLegend />

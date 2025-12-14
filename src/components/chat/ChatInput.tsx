@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Send } from 'lucide-react';
-import { driverQuickReplies, hostQuickReplies, supportQuickReplies, hostSupportQuickReplies, driverSupportQuickReplies } from '../../data/chatMock';
+import { driverQuickReplies, hostQuickReplies, hostSupportQuickReplies, driverSupportQuickReplies } from '../../data/chatMock';
 
 interface ChatInputProps {
     onSend: (message: string) => void;

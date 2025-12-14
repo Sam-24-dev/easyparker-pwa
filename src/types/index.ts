@@ -164,3 +164,21 @@ export interface IConversation {
   isRealChat?: boolean; // true = chat real sin auto-reply (garaje reclamado/creado), false/undefined = mock con auto-reply
 }
 
+// ========== FASE 4: Eventos ==========
+
+export interface IEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  locationName: string;
+  lat: number;
+  lng: number;
+  image: string;
+  priceSurge: number; // Multiplicador de precio (ej: 1.5)
+  radiusKm: number; // Radio de efecto en km
+  type: 'concert' | 'food' | 'sport' | 'other';
+  attendees: number; // Para social proof
+  endTime?: string;
+}

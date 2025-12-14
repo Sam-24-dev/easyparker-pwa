@@ -12,8 +12,10 @@ import { ReportModal } from '../../components/report/ReportModal';
 import {
   DollarSign, Calendar, Star, Check, X, User, Car, LogOut,
   Clock, ChevronDown, Shield, RotateCcw, TrendingUp,
-  Home, Flag
+  Home, Flag, Zap
 } from 'lucide-react';
+import { events } from '../../data/events';
+import { calculateDistanceKm } from '../../utils/pricingUtils';
 
 type TabType = 'pending' | 'in-progress' | 'completed' | 'history';
 
@@ -32,6 +34,14 @@ export default function HostDashboard() {
   const [filterParkingId, setFilterParkingId] = useState<number | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
+  // Event Detection State
+  const [surgeApplied, setSurgeApplied] = useState(() => {
+    return localStorage.getItem('ep_host_surge_active') === 'true';
+  });
+  const [nearbyEvent, setNearbyEvent] = useState<{ event: typeof events[0], distance: number } | null>(null);
+
+
+
   // Estado para modales de calificación y reporte
   const [ratingRequest, setRatingRequest] = useState<HostRequest | null>(null);
   const [reportRequest, setReportRequest] = useState<HostRequest | null>(null);
@@ -43,14 +53,41 @@ export default function HostDashboard() {
 
   // userParkings YA incluye los garajes creados + reclamados (viene del contexto combinado)
   // No necesitamos volver a agregar los claimedParkings
-  const allMyGarages = useMemo(() => {
-    return userParkings;
+  const activeGarages = useMemo(() => {
+    return userParkings.filter(p => p.isActive !== false);
   }, [userParkings]);
 
-  // Obtener solo los garajes ACTIVOS (para generar solicitudes y contador)
-  const activeGarages = useMemo(() => {
-    return allMyGarages.filter(p => p.isActive !== false);
-  }, [allMyGarages]);
+  // Check for nearby events
+  useEffect(() => {
+    if (activeGarages.length > 0) {
+      // Find if ANY active garage is near ANY event
+      for (const garage of activeGarages) {
+        for (const event of events) {
+          const dist = calculateDistanceKm(garage.lat, garage.lng, event.lat, event.lng);
+          // Usar el radio REAL del evento (ej: 1.2km o 0.8km)
+          if (dist <= event.radiusKm) {
+            setNearbyEvent({ event, distance: Number(dist.toFixed(2)) });
+            return; // Encontramos uno, suficiente para la demo
+          }
+        }
+      }
+    }
+  }, [activeGarages]);
+
+  const handleApplySurge = () => {
+    setSurgeApplied(true);
+    localStorage.setItem('ep_host_surge_active', 'true');
+    const endTime = nearbyEvent?.event.endTime || '00:00';
+    setToast({ message: `¡Activado! La tarifa volverá a la normalidad a las ${endTime}`, type: 'success' });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleRevertSurge = () => {
+    setSurgeApplied(false);
+    localStorage.removeItem('ep_host_surge_active');
+    setToast({ message: 'Precios restaurados a la normalidad', type: 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // Generar solicitudes automáticas cada 10 segundos si está online (SOLO para garajes activos)
   useEffect(() => {
@@ -111,7 +148,28 @@ export default function HostDashboard() {
       });
     }, 1000);
     return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, [requests, updateRequestStatus]);
+
+  // Sonido de "Caja Registradora" 🔔
+  const [prevPendingCount, setPrevPendingCount] = useState(0);
+
+  useEffect(() => {
+    const currentPending = requests.filter(r => r.status === 'pending').length;
+
+    // Si hay más pendientes que antes, sonar la caja!
+    if (currentPending > prevPendingCount) {
+      // Url de sonido de caja registradora / moneda
+      const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+      audio.volume = 0.6;
+      audio.play().catch(e => console.log('Audio play failed (user interaction needed first):', e));
+
+      // Mostrar toast también
+      setToast({ message: '🔔 ¡Nueva solicitud recibida!', type: 'success' });
+    }
+
+    setPrevPendingCount(currentPending);
+  }, [requests, prevPendingCount]);
 
   const handleSwitchToDriver = () => {
     toggleHostMode();
@@ -384,6 +442,59 @@ export default function HostDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Event Opportunity Widget */}
+      {nearbyEvent && (
+        <div className={`rounded-2xl p-5 border shadow-sm transition-all duration-500 mb-4 ${surgeApplied
+          ? 'bg-gradient-to-r from-indigo-900 to-blue-900 border-indigo-700'
+          : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
+          }`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-3">
+              <div className={`p-3 rounded-full shrink-0 ${surgeApplied ? 'bg-indigo-800 text-indigo-200' : 'bg-amber-100 text-amber-600'
+                }`}>
+                {surgeApplied ? <TrendingUp size={24} /> : <Zap size={24} className={surgeApplied ? '' : 'animate-pulse'} />}
+              </div>
+              <div>
+                <h3 className={`font-bold text-lg ${surgeApplied ? 'text-white' : 'text-slate-800'}`}>
+                  {surgeApplied ? '🔥 ¡Modo Alta Demanda Activo!' : '⚡ Oportunidad de Ganancia Detectada'}
+                </h3>
+                <p className={`text-sm mt-1 mb-2 ${surgeApplied ? 'text-indigo-200' : 'text-slate-600'}`}>
+                  {surgeApplied
+                    ? `Estás aprovechando el evento "${nearbyEvent.event.title}". Tus ganancias aumentaron (+20%). La tarifa regresará a la normalidad a las ${nearbyEvent.event.endTime}.`
+                    : `El evento "${nearbyEvent.event.title}" está a solo ${nearbyEvent.distance}km de tu garaje.`
+                  }
+                </p>
+
+                {!surgeApplied && (
+                  <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-lg border border-emerald-100 w-fit">
+                    <DollarSign size={14} />
+                    <span>Proyección: +$15 - $25 extra hoy si activas la tarifa.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            {!surgeApplied ? (
+              <button
+                onClick={handleApplySurge}
+                className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                Activar Tarifa Dinámica (+20%)
+              </button>
+            ) : (
+              <button
+                onClick={handleRevertSurge}
+                className="flex-1 bg-white/10 text-white border border-white/20 font-medium py-2.5 rounded-xl hover:bg-white/20 active:scale-95 transition-all"
+              >
+                Desactivar / Restaurar Precios
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Toggle Online/Offline */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">

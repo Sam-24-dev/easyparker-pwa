@@ -11,6 +11,10 @@ import { toPng } from 'html-to-image';
 import { Calendar, CreditCard, Download, Share2, Wallet, MessageCircle } from 'lucide-react';
 import { timeSlots as baseTimeSlots, slotKey } from '../utils/timeSlots';
 import { getRandomHostWelcomeMessage } from '../data/chatMock';
+import { events } from '../data/events';
+import { getParkingPriceForEvent } from '../utils/pricingUtils';
+import { ShieldCheck } from 'lucide-react';
+
 
 const placaRegex = /^[A-Z]{3}-?[0-9]{3,4}$/;
 
@@ -105,9 +109,61 @@ export function Reservar() {
     if (!parkingId) return [];
     return getBlockedSlots(parkingId);
   }, [parkingId, getBlockedSlots]);
+  // Pricing Logic
+  const priceInfo = useMemo(() => {
+    if (!parking) return { basePrice: 0, finalPrice: 0, isSurge: false, surgeMultiplier: 1 };
+    return getParkingPriceForEvent(parking, events);
+  }, [parking]);
+
+  // Extended Slots for Events (incluye madrugada)
+  // Extended Slots for Events (incluye madrugada)
+  const eventSlots = useMemo(() => {
+    // Safety check: ensure priceInfo exists and has activeEvent
+    if (!priceInfo || !priceInfo.activeEvent) return baseTimeSlots;
+    // Si hay evento, generar slots desde (HoraInicio - 4h) hasta (HoraFin)
+    // Para simplificar la demo, mostraremos un rango extendido fijo para eventos
+    // Ejemplo Chayanne 20:00 -> Slots desde 16:00 hasta 03:00 (necesita slots de madrugada)
+    // Ejemplo Burger Show 12:00 -> Slots desde 08:00 hasta 22:00
+
+    // Slots Mock extendidos
+    return [
+      { label: '8am - 9am', start: '08:00', end: '09:00' },
+      { label: '9am - 10am', start: '09:00', end: '10:00' },
+      { label: '10am - 11am', start: '10:00', end: '11:00' },
+      { label: '11am - 12pm', start: '11:00', end: '12:00' },
+      { label: '12pm - 1pm', start: '12:00', end: '13:00' },
+      { label: '1pm - 2pm', start: '13:00', end: '14:00' },
+      { label: '2pm - 3pm', start: '14:00', end: '15:00' },
+      { label: '3pm - 4pm', start: '15:00', end: '16:00' },
+      { label: '4pm - 5pm', start: '16:00', end: '17:00' },
+      { label: '5pm - 6pm', start: '17:00', end: '18:00' },
+      { label: '6pm - 7pm', start: '18:00', end: '19:00' },
+      { label: '7pm - 8pm', start: '19:00', end: '20:00' },
+      { label: '8pm - 9pm', start: '20:00', end: '21:00' },
+      { label: '9pm - 10pm', start: '21:00', end: '22:00' },
+      { label: '10pm - 11pm', start: '22:00', end: '23:00' },
+      { label: '11pm - 12am', start: '23:00', end: '00:00' },
+      { label: '12am - 1am', start: '00:00', end: '01:00' },
+      { label: '1am - 2am', start: '01:00', end: '02:00' },
+      { label: '2am - 3am', start: '02:00', end: '03:00' },
+    ];
+  }, [priceInfo.activeEvent]);
+
   const slotsWithAvailability = useMemo(
-    () => baseTimeSlots.map((slot) => ({ ...slot, available: !blockedSlots.includes(slotKey(slot)) })),
-    [blockedSlots]
+    () => {
+      let filtered = eventSlots;
+      // Filtrar según horario del evento si existe
+      if (priceInfo.activeEvent) {
+        // Lógica simple: Mostrar todos los extendidos
+        // Opcional: Recortar start/end según evento real
+      } else {
+        // Si no es evento, usar los baseTimeSlots normales
+        filtered = baseTimeSlots;
+      }
+
+      return filtered.map((slot) => ({ ...slot, available: !blockedSlots.includes(slotKey(slot)) }))
+    },
+    [blockedSlots, eventSlots, priceInfo.activeEvent]
   );
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -125,6 +181,17 @@ export function Reservar() {
   const [conversationId, setConversationId] = useState('');
   const voucherRef = useRef<HTMLDivElement | null>(null);
 
+  // VIP Escort State (Solo para Burger Show / Centro)
+  const [wantsEscort, setWantsEscort] = useState(false);
+
+
+
+  // Burger Show Check (solo ejemplo por ID o zona)
+  const canRequestEscort = useMemo(() => {
+    return priceInfo.activeEvent?.id === 'evt-002' || parking?.zonaId === 'centro';
+  }, [priceInfo, parking]);
+
+
   const selectedSlots = useMemo(() => {
     if (!selectedRange) return [];
     return slotsWithAvailability.slice(selectedRange.start, selectedRange.end + 1);
@@ -134,7 +201,13 @@ export function Reservar() {
   const horaInicio = selectedSlots[0]?.start ?? '';
   const horaFin = selectedSlots[selectedSlots.length - 1]?.end ?? '';
   const horarioResumen = totalHours ? `${horaInicio} - ${horaFin}` : 'Selecciona un rango';
-  const totalPrice = totalHours * (parking?.precio ?? 0);
+
+  // Calcular Total con Surge Price y Escolta
+  const parkingCost = totalHours * priceInfo.finalPrice;
+  const escortCost = wantsEscort ? 1.00 : 0;
+  const totalPrice = parkingCost + escortCost;
+
+
 
   const vehiculoBase = useMemo<TipoVehiculo | null>(() => {
     if (!parking) return null;
@@ -427,7 +500,9 @@ export function Reservar() {
         <div className="text-right">
           <p className="text-white/60">Total estimado</p>
           <p className="text-xl font-bold">${totalPrice.toFixed(2)}</p>
+          {priceInfo.isSurge && <span className="text-[10px] bg-rose-500 px-1.5 py-0.5 rounded text-white">Tarifa Evento</span>}
         </div>
+
       </div>
     </div>
   );
@@ -474,8 +549,29 @@ export function Reservar() {
             <div className="text-right">
               <p className="text-xs text-slate-500">Total estimado</p>
               <p className="text-3xl font-bold text-[#0B1F60]">${totalPrice.toFixed(2)}</p>
+              {priceInfo.isSurge && <span className="text-[10px] bg-rose-500 px-1.5 py-0.5 rounded text-white">Tarifa Evento</span>}
             </div>
           </div>
+
+          {/* VIP Escort Option */}
+          {canRequestEscort && (
+            <div className={`rounded-3xl border p-4 flex items-center gap-3 cursor-pointer transition-all ${wantsEscort ? 'border-amber-400 bg-amber-50' : 'border-slate-200'
+              }`}
+              onClick={() => setWantsEscort(!wantsEscort)}
+            >
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${wantsEscort ? 'border-amber-500 bg-amber-500' : 'border-slate-300'
+                }`}>
+                {wantsEscort && <span className="text-white font-bold text-xs">✓</span>}
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-[#0B1F60] flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-amber-600" />
+                  Solicitar Acompañamiento (+ $1.00)
+                </p>
+                <p className="text-xs text-slate-500">Un guardia te acompañará desde tu auto hasta la entrada del evento.</p>
+              </div>
+            </div>
+          )}
 
           <Button onClick={avanzar} className="w-full">Continuar</Button>
         </section>

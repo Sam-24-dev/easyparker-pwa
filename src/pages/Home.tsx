@@ -5,6 +5,9 @@ import { useParkingContext } from '../context/ParkingContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
 import { Search, Compass, Megaphone, Calendar, LogOut, Heart, Star, MapPin, Home as HomeIcon } from 'lucide-react';
+import { EventBanner } from '../components/events/EventBanner';
+import { events } from '../data/events';
+
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { FavoriteButton } from '../components/ui/FavoriteButton';
 import L from 'leaflet';
@@ -42,10 +45,7 @@ export function Home() {
   // Obtener los últimos 2 favoritos
   const favoriteParkings = allParkings.filter(p => favorites.includes(p.id)).slice(0, 2);
 
-  const handleAnunciosClick = () => {
-    setToastMessage('Próximamente: Ofertas y promociones');
-    setTimeout(() => setToastMessage(''), 2500);
-  };
+
 
   // Handler para convertirse en anfitrión
   const handleBecomeHost = async () => {
@@ -63,7 +63,7 @@ export function Home() {
 
   const suggestionCards = [
     { label: 'Explorar', icon: Compass, action: () => navigate('/buscar') },
-    { label: 'Anuncios', icon: Megaphone, action: handleAnunciosClick },
+    { label: 'Eventos', icon: Megaphone, action: () => navigate('/events') },
     { label: 'Reservas', icon: Calendar, action: () => navigate('/mis-reservas') },
   ];
 
@@ -89,7 +89,7 @@ export function Home() {
           </div>
         )}
 
-        <section className="rounded-3xl bg-gradient-to-br from-[#0A1F63] to-[#132A74] text-white p-6 shadow-xl">
+        <section className="rounded-3xl bg-[#0A1F63] text-white p-6 shadow-xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm text-white/70">Hola {firstName}!</p>
@@ -97,6 +97,7 @@ export function Home() {
                 ¿Quieres buscar estacionamiento?
               </h1>
             </div>
+
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Botón Modo Anfitrión - Solo si es host */}
               {user?.roles?.host === true && (
@@ -115,17 +116,24 @@ export function Home() {
                 <LogOut size={14} />
                 Salir
               </button>
+
+
             </div>
           </div>
 
-          <button
-            onClick={() => navigate('/buscar')}
-            className="mt-6 w-full bg-white rounded-2xl px-5 py-3 flex items-center gap-3 text-[#0B1F60] font-semibold shadow-lg"
-          >
-            <Search size={18} />
-            Buscar parqueo cercano
-          </button>
+          <div className="mt-6">
+            <EventBanner events={events} />
+
+            <button
+              onClick={() => navigate('/buscar')}
+              className="mt-4 w-full bg-white rounded-2xl px-5 py-3 flex items-center gap-3 text-[#0B1F60] font-semibold shadow-lg"
+            >
+              <Search size={18} />
+              Buscar parqueo cercano
+            </button>
+          </div>
         </section>
+
 
         <section className="rounded-3xl bg-white p-6 shadow-lg space-y-5">
           <article className="rounded-2xl bg-gradient-to-b from-[#0C1F63] to-[#1C2F74] text-white p-5 relative overflow-hidden">
@@ -237,14 +245,16 @@ export function Home() {
             </div>
           </div>
         </section>
-      </div>
+      </div >
 
       {/* Toast de mensaje */}
-      {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0B1F60] text-white text-sm font-semibold px-4 py-3 rounded-full shadow-lg animate-slide-up z-50">
-          {toastMessage}
-        </div>
-      )}
-    </Layout>
+      {
+        toastMessage && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#0B1F60] text-white text-sm font-semibold px-4 py-3 rounded-full shadow-lg animate-slide-up z-50">
+            {toastMessage}
+          </div>
+        )
+      }
+    </Layout >
   );
 }
