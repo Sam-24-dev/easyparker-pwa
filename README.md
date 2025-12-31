@@ -338,8 +338,6 @@ MIT © 2025 EasyParker
 
 <div align="center">
 
-**[⬆ Volver arriba](#-easyparker-pwa)**
-
-Hecho con ❤️ en Guayaquil, Ecuador 🇪🇨
+Hecho por Samir Caizapasto con ❤️ en Guayaquil, Ecuador
 
 </div>
